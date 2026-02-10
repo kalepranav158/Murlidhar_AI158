@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Conda / VS Code
+.vscode/
+.env
+
+# Audio / Video data
+*.wav
+*.mp3
+*.mp4
+
+# OS
+.DS_Store
+Thumbs.db
