@@ -1,4 +1,4 @@
-from audio.note_segmentor import NoteSegmenter
+from audio.note_segmenter import NoteSegmenter
 
 seg = NoteSegmenter()
 
