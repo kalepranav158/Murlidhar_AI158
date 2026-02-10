@@ -32,6 +32,10 @@ def callback(indata, frames, time_info, status):
         return
 
     note, cents = freq_to_sargam(freq)
+    # Ignore octave mistakes / harmonics
+    if abs(cents) > 50:
+        return
+
     if note is None:
         return
 
@@ -42,12 +46,30 @@ def callback(indata, frames, time_info, status):
     segmenter.process(note, cents, t)
 
 print("🎵 Play Sa Re Ga Ma Pa Dha Ni Sa")
-with sd.InputStream(channels=1, samplerate=SAMPLERATE, callback=callback):
-    time.sleep(15)
+
+with sd.InputStream(
+    channels=1,
+    samplerate=SAMPLERATE,
+    blocksize=512,
+    callback=callback
+):
+    time.sleep(15)   # ⏺ record for 15 seconds
 
 played = segmenter.get_notes()
+
+
+print("\n🎼 SEGMENTED NOTES:")
+for n in played:
+    print(n)
+
+if len(played) < 3:
+    print("❌ Too few notes detected. Try again.")
+    exit()
+
 cost, alignment = dtw_align(reference, played)
 result = evaluate(alignment)
 
-print("\nDTW Cost:", round(cost, 2))
+print("\nDTW Cost:", cost)
 print("Evaluation:", result)
+
+
