@@ -7,69 +7,84 @@ from audio.note_mapper import freq_to_sargam
 from audio.note_segmenter import NoteSegmenter
 from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
+from database.db import init_db, save_session
+
 
 SAMPLERATE = 44100
-segmenter = NoteSegmenter()
-start_time = None
+BLOCKSIZE = 512
+RECORD_SECONDS = 15
 
-reference = [
-    {"note": "Sa", "time": 0.0},
-    {"note": "Re", "time": 0.5},
-    {"note": "Ga", "time": 1.0},
-    {"note": "Ma", "time": 1.5},
-    {"note": "Pa", "time": 2.0},
-    {"note": "Dha", "time": 2.5},
-    {"note": "Ni", "time": 3.0},
-    {"note": "Sa", "time": 3.5},
-]
 
-def callback(indata, frames, time_info, status):
-    global start_time
-    samples = np.mean(indata, axis=1).astype(np.float32)
-    freq, conf = detect_pitch(samples)
+def main():
+    init_db()  # ✅ ensure DB exists
 
-    if freq <= 0 or conf < 0.8:
+    segmenter = NoteSegmenter()
+    start_time = None
+
+    reference = [
+        {"note": "Madhya Sa", "time": 0.0},
+        {"note": "Madhya Re", "time": 0.5},
+        {"note": "Madhya Ga", "time": 1.0},
+        {"note": "Madhya Ma", "time": 1.5},
+        {"note": "Madhya Pa", "time": 2.0},
+        {"note": "Madhya Dha", "time": 2.5},
+        {"note": "Madhya Ni", "time": 3.0},
+        {"note": "Taar Sa", "time": 3.5},
+    ]
+
+    def callback(indata, frames, time_info, status):
+        nonlocal start_time
+
+        samples = np.mean(indata, axis=1).astype(np.float32)
+        freq, conf = detect_pitch(samples)
+
+        if freq <= 0 or conf < 0.8:
+            return
+
+        note, cents = freq_to_sargam(freq)
+
+        if note is None:
+            return
+
+        if abs(cents) > 50:
+            return
+
+        if start_time is None:
+            start_time = time.time()
+
+        t = time.time() - start_time
+        segmenter.process(note, cents, t)
+
+    print("🎵 Play Sa Re Ga Ma Pa Dha Ni Sa")
+
+    with sd.InputStream(
+        channels=1,
+        samplerate=SAMPLERATE,
+        blocksize=BLOCKSIZE,
+        callback=callback
+    ):
+        time.sleep(RECORD_SECONDS)
+
+    played = segmenter.get_notes()
+
+    print("\n🎼 SEGMENTED NOTES:")
+    for n in played:
+        print(n)
+
+    if len(played) < 3:
+        print("❌ Too few notes detected. Try again.")
         return
 
-    note, cents = freq_to_sargam(freq)
-    # Ignore octave mistakes / harmonics
-    if abs(cents) > 50:
-        return
+    cost, alignment = dtw_align(reference, played)
+    result = evaluate(alignment)
 
-    if note is None:
-        return
+    print("\nDTW Cost:", cost)
+    print("Evaluation:", result)
 
-    if start_time is None:
-        start_time = time.time()
-
-    t = time.time() - start_time
-    segmenter.process(note, cents, t)
-
-print("🎵 Play Sa Re Ga Ma Pa Dha Ni Sa")
-
-with sd.InputStream(
-    channels=1,
-    samplerate=SAMPLERATE,
-    blocksize=512,
-    callback=callback
-):
-    time.sleep(15)   # ⏺ record for 15 seconds
-
-played = segmenter.get_notes()
+    # ✅ Save session
+    save_session(reference, played, result)
+    print("💾 Session saved to database.")
 
 
-print("\n🎼 SEGMENTED NOTES:")
-for n in played:
-    print(n)
-
-if len(played) < 3:
-    print("❌ Too few notes detected. Try again.")
-    exit()
-
-cost, alignment = dtw_align(reference, played)
-result = evaluate(alignment)
-
-print("\nDTW Cost:", cost)
-print("Evaluation:", result)
-
-
+if __name__ == "__main__":
+    main()
