@@ -8,6 +8,11 @@ from audio.note_segmenter import NoteSegmenter
 from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
 from database.db import init_db, save_session
+from analytics.progress import compute_progress
+from llm.feedback import generate_feedback
+
+
+
 
 
 SAMPLERATE = 44100
@@ -77,6 +82,12 @@ def main():
 
     cost, alignment = dtw_align(reference, played)
     result = evaluate(alignment)
+    progress = compute_progress()
+    guru_feedback = generate_feedback(result, progress)
+
+    print("\n🧠 Guru Feedback:")
+    print(guru_feedback)
+    
 
     print("\nDTW Cost:", cost)
     print("Evaluation:", result)

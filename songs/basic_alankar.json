@@ -1,0 +1,18 @@
+{
+  "title": "Basic Alankar",
+  "tempo": 60,
+  "phrases": [
+    [
+      {"note": "Madhya Sa", "duration": 1},
+      {"note": "Madhya Re", "duration": 1},
+      {"note": "Madhya Ga", "duration": 1},
+      {"note": "Madhya Ma", "duration": 1}
+    ],
+    [
+      {"note": "Madhya Pa", "duration": 1},
+      {"note": "Madhya Dha", "duration": 1},
+      {"note": "Madhya Ni", "duration": 1},
+      {"note": "Taar Sa", "duration": 1}
+    ]
+  ]
+}

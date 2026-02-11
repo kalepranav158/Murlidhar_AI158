@@ -1,0 +1,15 @@
+Audio callbacks are contracts.
+DSP algorithms require fixed frame sizes.
+
+
+🎼 MUSICAL INSIGHT (THIS IS KEY)
+A note should be accepted when:
+“The pitch stays the same continuously for ≥ MIN_NOTE_DURATION”
+NOT:
+“There are two frames with same note”
+“The note didn’t change back”
+So we need:
+A candidate note
+A candidate start time
+Confirmation only after duration is met
+This requires a 2-state machine, not a single variable.

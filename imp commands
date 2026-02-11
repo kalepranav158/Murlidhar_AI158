@@ -1,0 +1,27 @@
+conda --version          # Check conda version
+conda info               # System & environment info
+conda help               # General help
+conda list               # List installed packages (current env)
+conda create -n myenv python=3.10     # Create environment
+conda activate myenv                  # Activate environment
+conda deactivate                      # Deactivate current env
+conda env list                        # List all environments
+conda remove -n myenv --all           # Delete environment
+conda install numpy                   # Install package
+conda install numpy pandas matplotlib # Install multiple packages
+conda remove numpy                    # Remove package
+conda update numpy                    # Update package
+conda update --all                    # Update all packages
+conda search scipy                    # Search package
+conda install -c conda-forge librosa  # Install from conda-forge
+conda config --show channels          # Show channels
+conda env export > environment.yml    # Export env
+conda env create -f environment.yml   # Recreate env
+which python        # Linux / macOS
+where python        # Windows
+
+python --version    # Python version in current env
+conda clean --all              # Clear cache
+conda config --set auto_activate_base false  # Disable base auto-activate
+conda init                     # Initialize shell
+

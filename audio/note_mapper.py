@@ -1,7 +1,6 @@
 import math
 
-# Fixed Sa for C natural flute (middle octave)
-SA_FREQ = 523.25  # Hz
+SA_FREQ = 523.25  # Middle Sa (Madhya Sa)
 
 INT_TO_NOTE = [
     "Sa", "Komal Re", "Re", "Komal Ga", "Ga",
@@ -13,17 +12,27 @@ def freq_to_sargam(freq):
     if freq <= 0:
         return None, None
 
-    # cents relative to Sa
-    cents_from_sa = 1200 * math.log2(freq / SA_FREQ)
+    # Semitone distance from Madhya Sa
+    semitones_from_sa = 12 * math.log2(freq / SA_FREQ)
 
-    # fold into nearest octave
-    octave_shift = round(cents_from_sa / 1200)
-    cents_from_sa -= octave_shift * 1200
+    nearest_semitone = round(semitones_from_sa)
 
-    note_index = round(cents_from_sa / 100) % 12
-    note = INT_TO_NOTE[note_index]
+    note_index = nearest_semitone % 12
+    note_name = INT_TO_NOTE[note_index]
 
-    ideal_freq = SA_FREQ * (2 ** (note_index / 12))
+    # Determine octave band
+    octave_number = nearest_semitone // 12
+
+    if octave_number <= -1:
+        octave_prefix = "Mandra"
+    elif octave_number == 0:
+        octave_prefix = "Madhya"
+    else:
+        octave_prefix = "Taar"
+
+    full_note = f"{octave_prefix} {note_name}"
+
+    ideal_freq = SA_FREQ * (2 ** (nearest_semitone / 12))
     cents = 1200 * math.log2(freq / ideal_freq)
 
-    return note, cents
+    return full_note, cents
