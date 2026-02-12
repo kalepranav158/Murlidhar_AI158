@@ -2,14 +2,12 @@ import numpy as np
 import soundfile as sf
 import tempfile
 import os
-
 from audio.pitch_detector import detect_pitch
 from audio.note_mapper import freq_to_sargam
 from audio.note_segmenter import NoteSegmenter
 from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
 from music.song_loader import load_song
-from music.reference_builder import phrase_to_reference
 from database.db import save_session
 
 
@@ -32,7 +30,7 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
         return {"error": "Invalid phrase index"}
 
     phrase = song["phrases"][phrase_index]
-    reference = phrase_to_reference(phrase)
+    reference = phrase["notes"]
 
     # -----------------------------
     # Save Temporary WAV
