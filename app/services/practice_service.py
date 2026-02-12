@@ -1,7 +1,10 @@
+from fastapi import HTTPException
 import numpy as np
 import soundfile as sf
 import tempfile
 import os
+import logging
+
 from audio.pitch_detector import detect_pitch
 from audio.note_mapper import freq_to_sargam
 from audio.note_segmenter import NoteSegmenter
@@ -9,82 +12,128 @@ from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
 from music.song_loader import load_song
 from database.db import save_session
+from app.services.feedback import generate_feedback
 
+
+logger = logging.getLogger(__name__)
 
 HOP_SIZE = 512
 
 
 async def evaluate_audio(upload_file, song_id, phrase_index):
 
-    # -----------------------------
+    logger.info(f"Practice request: song={song_id}, phrase={phrase_index}")
+
+    # ----------------------------------
+    # Validate File Type
+    # ----------------------------------
+    if upload_file.content_type not in ["audio/wav", "audio/x-wav"]:
+        raise HTTPException(status_code=400, detail="Only WAV files supported")
+
+    # ----------------------------------
     # Load Song
-    # -----------------------------
+    # ----------------------------------
     song_path = f"songs/{song_id}.json"
 
     if not os.path.exists(song_path):
-        return {"error": "Song not found"}
+        raise HTTPException(status_code=404, detail="Song not found")
 
     song = load_song(song_path)
 
-    if phrase_index >= len(song["phrases"]):
-        return {"error": "Invalid phrase index"}
+    if phrase_index < 0 or phrase_index >= len(song["phrases"]):
+        raise HTTPException(status_code=400, detail="Invalid phrase index")
 
     phrase = song["phrases"][phrase_index]
     reference = phrase["notes"]
 
-    # -----------------------------
-    # Save Temporary WAV
-    # -----------------------------
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-        tmp.write(await upload_file.read())
-        tmp_path = tmp.name
+    if not reference:
+        raise HTTPException(status_code=500, detail="Reference phrase empty")
 
-    data, samplerate = sf.read(tmp_path)
+    # ----------------------------------
+    # Save Temporary File Safely
+    # ----------------------------------
+    tmp_path = None
 
-    if len(data.shape) > 1:
-        data = np.mean(data, axis=1)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(await upload_file.read())
+            tmp_path = tmp.name
 
-    segmenter = NoteSegmenter()
-    current_time = 0.0
+        data, samplerate = sf.read(tmp_path)
 
-    # -----------------------------
-    # Frame-Based Processing
-    # -----------------------------
-    for i in range(0, len(data) - HOP_SIZE, HOP_SIZE):
-        frame = data[i:i + HOP_SIZE].astype(np.float32)
+        if len(data.shape) > 1:
+            data = np.mean(data, axis=1)
 
-        freq, conf = detect_pitch(frame)
+        segmenter = NoteSegmenter()
+        current_time = 0.0
 
-        if freq <= 0 or conf < 0.8:
+        # ----------------------------------
+        # Frame Processing
+        # ----------------------------------
+        for i in range(0, len(data) - HOP_SIZE, HOP_SIZE):
+            frame = data[i:i + HOP_SIZE].astype(np.float32)
+
+            freq, conf = detect_pitch(frame)
+
+            if freq <= 0 or conf < 0.8:
+                current_time += HOP_SIZE / samplerate
+                continue
+
+            note, cents = freq_to_sargam(freq)
+
+            if note and abs(cents) <= 50:
+                segmenter.process(note, cents, current_time)
+
             current_time += HOP_SIZE / samplerate
-            continue
 
-        note, cents = freq_to_sargam(freq)
+        played = segmenter.get_notes()
 
-        if note and abs(cents) <= 50:
-            segmenter.process(note, cents, current_time)
+    except Exception as e:
+        logger.exception("Audio processing failed")
+        raise HTTPException(status_code=500, detail="Audio processing failed")
 
-        current_time += HOP_SIZE / samplerate
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
-    played = segmenter.get_notes()
+    # ----------------------------------
+    # Validate Played Notes
+    # ----------------------------------
+    if not played:
+        raise HTTPException(status_code=400, detail="No valid notes detected")
 
-    os.remove(tmp_path)
-
-    if len(played) == 0:
-        return {"error": "No valid notes detected"}
-
-    # -----------------------------
-    # DTW + Scoring
-    # -----------------------------
-    cost, alignment = dtw_align(reference, played)
-    result = evaluate(alignment)
+    # ----------------------------------
+    # DTW + Evaluation
+    # ----------------------------------
+    try:
+        cost, alignment = dtw_align(reference, played)
+        result = evaluate(alignment)
+    except Exception:
+        logger.exception("DTW evaluation failed")
+        raise HTTPException(status_code=500, detail="Evaluation failed")
 
     save_session(reference, played, result)
 
+    logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
+
     return {
-        "song": song["title"],
-        "phrase_index": phrase_index,
-        "dtw_cost": cost,
-        "evaluation": result,
-        "played_notes": played
+    "song": song["title"],
+    "phrase_index": phrase_index,
+    "dtw_cost": float(cost),
+    "evaluation": {
+        "note_accuracy": result["note_accuracy"],
+        "avg_pitch_error_cents": result["avg_pitch_error_cents"],
+        "avg_timing_error_sec": result["avg_timing_error_sec"],
+        "mistakes": result["mistakes"],
+        "feedback": generate_feedback(result),
+    },
+    "played_notes": [
+        {
+            "note": n["note"],
+            "cents": float(n["cents"]),
+            "time": float(n["time"])
+        }
+        for n in played
+    ]
     }
+ 

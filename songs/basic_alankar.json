@@ -1,18 +1,24 @@
 {
+  "song_id": "basic_alankar",
   "title": "Basic Alankar",
   "tempo": 60,
   "phrases": [
-    [
-      {"note": "Madhya Sa", "duration": 1},
-      {"note": "Madhya Re", "duration": 1},
-      {"note": "Madhya Ga", "duration": 1},
-      {"note": "Madhya Ma", "duration": 1}
-    ],
-    [
-      {"note": "Madhya Pa", "duration": 1},
-      {"note": "Madhya Dha", "duration": 1},
-      {"note": "Madhya Ni", "duration": 1},
-      {"note": "Taar Sa", "duration": 1}
-    ]
+    {
+      "phrase_id": 1,
+      "notes": [
+        {"note": "Madhya Sa", "time": 0.0},
+        {"note": "Madhya Re", "time": 0.5},
+        {"note": "Madhya Ga", "time": 1.0}
+      ]
+    },
+    {
+      "phrase_id": 2,
+      "notes": [
+        {"note": "Madhya Ga", "time": 0.0},
+        {"note": "Madhya Re", "time": 0.5},
+        {"note": "Madhya Sa", "time": 1.0}
+      ]
+    }
   ]
 }
+
