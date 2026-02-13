@@ -4,6 +4,7 @@ import soundfile as sf
 import tempfile
 import os
 import logging
+from app.services.llm.feedback_llm import generate_guru_feedback
 from audio.pitch_detector import detect_pitch
 from audio.note_mapper import freq_to_sargam
 from audio.note_segmenter import NoteSegmenter
@@ -62,6 +63,9 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
     if not reference:
         raise HTTPException(status_code=500, detail="Reference phrase empty")
 
+
+
+
     # ----------------------------------
     # Save Temporary File Safely
     # ----------------------------------
@@ -109,11 +113,17 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
+
+
+
+
     # ----------------------------------
     # Validate Played Notes
     # ----------------------------------
     if not played:
         raise HTTPException(status_code=400, detail="No valid notes detected")
+
+
 
     # ----------------------------------
     # DTW + Evaluation
@@ -128,6 +138,17 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
     save_session(reference, played, result)
 
     logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
+    
+
+
+    # generate feedback using LLM with fallback
+    try:
+        ai_feedback = generate_guru_feedback(result)
+    except Exception:
+       logger.exception("LLM failed, using fallback feedback")
+       ai_feedback = generate_feedback(result)
+
+
 
     return {
         "song": song["title"],
@@ -138,7 +159,7 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
             "avg_pitch_error_cents": result["avg_pitch_error_cents"],
             "avg_timing_error_sec": result["avg_timing_error_sec"],
             "mistakes": result["mistakes"],
-            "feedback": generate_feedback(result),
+            "feedback":ai_feedback,
         },
         "played_notes": [
             {

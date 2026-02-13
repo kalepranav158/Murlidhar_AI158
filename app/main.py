@@ -5,6 +5,7 @@ import os
 import json
 from app.routes import sessions
 from app.routes import analytics
+from app.routes import ask
 
 import logging
 
@@ -20,7 +21,7 @@ app.include_router(practice.router)
 app.include_router(songs.router)
 app.include_router(sessions.router)
 app.include_router(analytics.router)
-
+app.include_router(ask.router)
 
 
 
