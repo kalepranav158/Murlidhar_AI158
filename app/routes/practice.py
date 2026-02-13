@@ -4,11 +4,9 @@ from app.schemas.practice import PracticeResponse
 
 router = APIRouter(prefix="/practice", tags=["Practice"])
 
+from app.schemas.practice import PracticeResponse
 
-@router.post(
-    "/{song_id}/{phrase_index}",
-    response_model=PracticeResponse
-)
+@router.post("/{song_id}/{phrase_index}", response_model=PracticeResponse)
 async def practice(
     song_id: str,
     phrase_index: int,

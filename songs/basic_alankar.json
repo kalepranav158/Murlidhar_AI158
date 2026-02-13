@@ -8,17 +8,15 @@
       "notes": [
         {"note": "Madhya Sa", "time": 0.0},
         {"note": "Madhya Re", "time": 0.5},
-        {"note": "Madhya Ga", "time": 1.0}
-      ]
-    },
-    {
-      "phrase_id": 2,
-      "notes": [
+        {"note": "Madhya Ga", "time": 1.0},
         {"note": "Madhya Ga", "time": 0.0},
         {"note": "Madhya Re", "time": 0.5},
         {"note": "Madhya Sa", "time": 1.0}
+   
       ]
+    
     }
   ]
+   
 }
 

@@ -1,14 +1,23 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Request,HTTPException
+from fastapi.responses import JSONResponse
 from app.routes import practice,songs
-from fastapi import HTTPException
 import os
 import json
+from app.routes import sessions
+
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 
 app = FastAPI(title="Murlidhar AI - Flute Tutor API")
 
 app.include_router(practice.router)
 app.include_router(songs.router)
+app.include_router(sessions.router)
 
 @app.get("/")
 def root():
@@ -30,3 +39,13 @@ def load_phrase(song_id: str, phrase_id: int):
             return phrase["notes"]
 
     raise HTTPException(status_code=404, detail="Phrase not found")
+
+
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+    )

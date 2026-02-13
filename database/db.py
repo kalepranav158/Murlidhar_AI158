@@ -55,12 +55,31 @@ def save_session(reference, played, result):
     conn.close()
 
 
-def get_all_sessions():
+def get_sessions(limit: int = 20):
     conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM sessions ORDER BY id DESC")
-    rows = cursor.fetchall()
+    cursor.execute(
+        "SELECT * FROM sessions ORDER BY id DESC LIMIT ?",
+        (limit,)
+    )
 
+    rows = cursor.fetchall()
     conn.close()
-    return rows
+
+    sessions = []
+
+    for row in rows:
+        sessions.append({
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "reference": json.loads(row["reference"]),
+            "played_notes": json.loads(row["played_notes"]),
+            "note_accuracy": row["note_accuracy"],
+            "avg_pitch_error": row["avg_pitch_error"],
+            "avg_timing_error": row["avg_timing_error"],
+            "mistakes": json.loads(row["mistakes"])
+        })
+
+    return sessions

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 HOP_SIZE = 512
 
 
+
 async def evaluate_audio(upload_file, song_id, phrase_index):
 
     logger.info(f"Practice request: song={song_id}, phrase={phrase_index}")
@@ -29,6 +30,19 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
     # ----------------------------------
     if upload_file.content_type not in ["audio/wav", "audio/x-wav"]:
         raise HTTPException(status_code=400, detail="Only WAV files supported")
+
+    # ----------------------------------
+    # Validate File Size (STEP 5 ADDED)
+    # ----------------------------------
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+    contents = await upload_file.read()
+
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Empty audio file")
 
     # ----------------------------------
     # Load Song
@@ -56,7 +70,7 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
 
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(await upload_file.read())
+            tmp.write(contents)
             tmp_path = tmp.name
 
         data, samplerate = sf.read(tmp_path)
@@ -88,7 +102,7 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
 
         played = segmenter.get_notes()
 
-    except Exception as e:
+    except Exception:
         logger.exception("Audio processing failed")
         raise HTTPException(status_code=500, detail="Audio processing failed")
 
@@ -117,23 +131,22 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
     logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
 
     return {
-    "song": song["title"],
-    "phrase_index": phrase_index,
-    "dtw_cost": float(cost),
-    "evaluation": {
-        "note_accuracy": result["note_accuracy"],
-        "avg_pitch_error_cents": result["avg_pitch_error_cents"],
-        "avg_timing_error_sec": result["avg_timing_error_sec"],
-        "mistakes": result["mistakes"],
-        "feedback": generate_feedback(result),
-    },
-    "played_notes": [
-        {
-            "note": n["note"],
-            "cents": float(n["cents"]),
-            "time": float(n["time"])
-        }
-        for n in played
-    ]
+        "song": song["title"],
+        "phrase_index": phrase_index,
+        "dtw_cost": float(cost),
+        "evaluation": {
+            "note_accuracy": result["note_accuracy"],
+            "avg_pitch_error_cents": result["avg_pitch_error_cents"],
+            "avg_timing_error_sec": result["avg_timing_error_sec"],
+            "mistakes": result["mistakes"],
+            "feedback": generate_feedback(result),
+        },
+        "played_notes": [
+            {
+                "note": n["note"],
+                "cents": float(n["cents"]),
+                "time": float(n["time"])
+            }
+            for n in played
+        ]
     }
- 
