@@ -4,6 +4,7 @@ from app.routes import practice,songs
 import os
 import json
 from app.routes import sessions
+from app.routes import analytics
 
 import logging
 
@@ -18,6 +19,11 @@ app = FastAPI(title="Murlidhar AI - Flute Tutor API")
 app.include_router(practice.router)
 app.include_router(songs.router)
 app.include_router(sessions.router)
+app.include_router(analytics.router)
+
+
+
+
 
 @app.get("/")
 def root():

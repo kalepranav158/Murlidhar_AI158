@@ -4,7 +4,6 @@ import soundfile as sf
 import tempfile
 import os
 import logging
-
 from audio.pitch_detector import detect_pitch
 from audio.note_mapper import freq_to_sargam
 from audio.note_segmenter import NoteSegmenter
@@ -13,7 +12,7 @@ from evaluation.scorer import evaluate
 from music.song_loader import load_song
 from database.db import save_session
 from app.services.feedback import generate_feedback
-
+from app.routes.analytics import get_summary
 
 logger = logging.getLogger(__name__)
 

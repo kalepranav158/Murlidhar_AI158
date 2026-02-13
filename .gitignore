@@ -22,6 +22,8 @@ sample_sounds/
 # Database
 # -------------------------
 *.db
+practice_sessions.db
+
 
 # -------------------------
 # OS Files
