@@ -1,13 +1,10 @@
-from app.services.llm_client import generate_guru_feedback
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
-dummy_result = {
-    "note_accuracy": 82.5,
-    "avg_pitch_error_cents": 24.3,
-    "avg_timing_error_sec": 0.42,
-    "mistakes": [{"expected": "Madhya Ga", "played": "Madhya Komal Ga"}]
-}
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="gemini-embedding-001",
+)
 
-response = generate_guru_feedback(dummy_result)
-
-print("\n--- Gemini Response ---\n")
-print(response)
+print(embeddings.embed_query("Sa Re Ga Ma"))

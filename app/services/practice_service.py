@@ -21,7 +21,7 @@ HOP_SIZE = 512
 
 
 
-async def evaluate_audio(upload_file, song_id, phrase_index):
+async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
 
     logger.info(f"Practice request: song={song_id}, phrase={phrase_index}")
 
@@ -135,7 +135,7 @@ async def evaluate_audio(upload_file, song_id, phrase_index):
         logger.exception("DTW evaluation failed")
         raise HTTPException(status_code=500, detail="Evaluation failed")
 
-    save_session(reference, played, result)
+    save_session(user_id=user_id, reference=reference, played=played, result=result)
 
     logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
     

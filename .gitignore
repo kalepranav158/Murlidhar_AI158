@@ -23,6 +23,7 @@ sample_sounds/
 # -------------------------
 *.db
 practice_sessions.db
+app/vector_db/
 
 
 # -------------------------
