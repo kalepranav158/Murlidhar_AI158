@@ -6,10 +6,11 @@ router = APIRouter(prefix="/practice", tags=["Practice"])
 
 from app.schemas.practice import PracticeResponse
 
-@router.post("/{song_id}/{phrase_index}", response_model=PracticeResponse)
+@router.post("/{user_id}/{song_id}/{phrase_index}", response_model=PracticeResponse)
 async def practice(
+    user_id: str,
     song_id: str,
     phrase_index: int,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
-    return await evaluate_audio(file, song_id, phrase_index)
+    return await evaluate_audio(user_id,file, song_id, phrase_index)

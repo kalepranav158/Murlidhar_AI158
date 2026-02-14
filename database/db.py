@@ -10,28 +10,31 @@ def init_db():
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            reference TEXT,
-            played_notes TEXT,
-            note_accuracy REAL,
-            avg_pitch_error REAL,
-            avg_timing_error REAL,
-            mistakes TEXT
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        timestamp TEXT,
+        reference TEXT,
+        played_notes TEXT,
+        note_accuracy REAL,
+        avg_pitch_error REAL,
+        avg_timing_error REAL,
+        mistakes TEXT
+    )
+""")
+
 
     conn.commit()
     conn.close()
 
 
-def save_session(reference, played, result):
+def save_session(user_id, reference, played, result):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
         INSERT INTO sessions (
+            user_id,
             timestamp,
             reference,
             played_notes,
@@ -40,8 +43,9 @@ def save_session(reference, played, result):
             avg_timing_error,
             mistakes
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
+        user_id,
         datetime.now().isoformat(),
         json.dumps(reference),
         json.dumps(played),
@@ -53,6 +57,7 @@ def save_session(reference, played, result):
 
     conn.commit()
     conn.close()
+
 
 
 def get_sessions(limit: int = 100):
@@ -80,3 +85,23 @@ def get_sessions(limit: int = 100):
         })
 
     return sessions
+
+
+def get_last_session(user_id: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM sessions
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (user_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+

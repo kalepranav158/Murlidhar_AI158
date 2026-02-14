@@ -1,34 +1,22 @@
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # ----------------------------------
-# Initialize Gemini Model
+# Singleton LLM Instance
 # ----------------------------------
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+_llm_instance = None
 
-if not GOOGLE_API_KEY:
-    raise RuntimeError("GOOGLE_API_KEY not set in environment variables")
+def get_llm():
+    global _llm_instance
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-flash-latest",
-    temperature=0.4
-)
+    if _llm_instance is None:
+        _llm_instance = ChatGoogleGenerativeAI(
+            model="gemini-flash-latest",
+            temperature=0.4
+        )
 
-
-# ----------------------------------
-# Generic Response Generator
-# ----------------------------------
-
-def generate_response(prompt: str) -> str:
-    """
-    Sends prompt to Gemini and returns clean text output.
-    """
-    response = llm.invoke([HumanMessage(content=prompt)])
-
-    # LangChain returns AIMessage object
-    return response.text
+    return _llm_instance

@@ -1,21 +1,16 @@
 from fastapi import APIRouter
-from app.services.llm.gemini_client import generate_response
+from pydantic import BaseModel
+from app.services.llm.ask_llm import ask_guru
 
-router = APIRouter(prefix="/ask", tags=["LLM"])
+router = APIRouter(prefix="/ask", tags=["Ask Guru"])
+
+class QuestionRequest(BaseModel):
+    question: str
 
 @router.post("/")
-async def ask_question(question: str):
-
-    prompt = f"""
-    You are a professional Indian classical flute teacher.
-
-    Answer clearly and accurately:
-    {question}
-    """
-
-    answer = generate_response(prompt)
-
+async def ask(request: QuestionRequest, user_id: str):
+    answer = ask_guru(user_id, request.question)
     return {
-        "question": question,
+        "question": request.question,
         "answer": answer
     }

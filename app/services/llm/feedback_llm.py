@@ -1,21 +1,29 @@
-from app.services.llm.gemini_client import generate_response
+from langchain_core.messages import HumanMessage, SystemMessage
+from app.services.llm.gemini_client import get_llm
 
-def generate_guru_feedback(evaluation: dict) -> str:
 
-    prompt = f"""
-    You are an expert Hindustani flute guru.
+def generate_guru_feedback(result: dict) -> str:
+    llm = get_llm()
 
-    Student performance evaluation:
-    - Note Accuracy: {evaluation["note_accuracy"]}%
-    - Avg Pitch Error: {evaluation["avg_pitch_error_cents"]} cents
-    - Avg Timing Error: {evaluation["avg_timing_error_sec"]} sec
-    - Mistakes: {evaluation["mistakes"]}
-
-    Provide:
-    1. Technical correction advice
-    2. Specific flute technique guidance
+    system_prompt = """
+    You are a senior Hindustani classical flute guru.
+    Give structured feedback in:
+    1. Technical diagnosis
+    2. Flute correction advice
     3. Practice recommendation
-    Keep it concise and practical.
     """
 
-    return generate_response(prompt)
+    human_prompt = f"""
+    Performance Data:
+    Accuracy: {result['note_accuracy']}%
+    Pitch Error: {result['avg_pitch_error_cents']} cents
+    Timing Error: {result['avg_timing_error_sec']} sec
+    Mistakes: {result['mistakes']}
+    """
+
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=human_prompt)
+    ])
+
+    return response.text.strip()
