@@ -60,15 +60,24 @@ def save_session(user_id, reference, played, result):
 
 
 
-def get_sessions(limit: int = 100):
+def get_sessions(user_id: str = None, limit: int = 100):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute(
+    if user_id:
+        cursor.execute(
+            "SELECT * FROM sessions WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+            (user_id, limit)
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM sessions ORDER BY id DESC LIMIT ?",
+            (limit,)
+        )
         "SELECT * FROM sessions ORDER BY id DESC LIMIT ?",
         (limit,)
-    )
+    
 
     rows = cursor.fetchall()
     conn.close()
