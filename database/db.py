@@ -60,7 +60,7 @@ def save_session(user_id, reference, played, result):
 
 
 
-def get_sessions(user_id: str = None, limit: int = 100):
+def get_sessions(user_id: str , limit: int = 100):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()

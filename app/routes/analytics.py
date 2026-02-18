@@ -1,14 +1,21 @@
 from fastapi import APIRouter
 from database.db import get_sessions
 import statistics
+from app.services.analytics_services import (
+    build_accuracy_series,
+    build_prediction,
+    build_summary,
+    build_variation_metrics,
+    
+)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
 @router.get("/summary")
-def get_summary():
+def get_summary(user_id: str):
 
-    sessions = get_sessions(limit=100)
+    sessions = get_sessions(user_id=user_id, limit=100)
 
     if not sessions:
         return {"message": "No sessions available."}
@@ -32,34 +39,30 @@ def get_summary():
     }
 
 @router.get("/trend")
-def get_trend():
+def get_trend(user_id: str):
 
-    sessions = get_sessions(limit=50)
+    sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 2:
-        return {"message": "Not enough sessions for trend analysis."}
+        return {"message": "Not enough sessions."}
 
-    sessions.reverse()  # oldest first
-
-    first = sessions[0]["note_accuracy"]
-    last = sessions[-1]["note_accuracy"]
-
-    improvement = last - first
-
-    direction = "improving" if improvement > 0 else "declining"
+    sessions.reverse()
 
     return {
-        "start_accuracy": first,
-        "latest_accuracy": last,
-        "change": round(improvement, 2),
-        "trend": direction
+        "accuracy_series": [
+            {
+                "session": i + 1,
+                "accuracy": s["note_accuracy"]
+            }
+            for i, s in enumerate(sessions)
+        ]
     }
 
 
 @router.get("/skill-level")
-def get_skill_level():
+def get_skill_level(user_id: str):
 
-    sessions = get_sessions(limit=50)
+    sessions = get_sessions(user_id=user_id, limit=50)
 
     if not sessions:
         return {"message": "No sessions available."}
@@ -88,11 +91,10 @@ def get_skill_level():
     }
 
 
-
 @router.get("/consistency")
-def get_consistency():
+def get_consistency(user_id: str):
 
-    sessions = get_sessions(limit=50)
+    sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 3:
         return {"message": "Not enough sessions for consistency analysis."}
@@ -114,11 +116,10 @@ def get_consistency():
     }
 
 
-
-@router.get("/pitch-stability")
-def get_pitch_stability():
-
-    sessions = get_sessions(limit=50)
+@router.get("/pitch-stability-control")
+def get_pitch_stability(user_id: str):
+    import statistics
+    sessions = get_sessions(user_id=user_id, limit=50)
 
     if not sessions:
         return {"message": "No sessions available."}
@@ -134,16 +135,40 @@ def get_pitch_stability():
     else:
         level = "Poor Pitch Stability"
 
+    
+    pitch_errors = [s["avg_pitch_error"] for s in sessions]
+
+    mean_pitch = statistics.mean(pitch_errors)
+
+    if len(pitch_errors) > 1:
+        pitch_variation = statistics.stdev(pitch_errors)
+    else:
+        pitch_variation = 0.0
+
+    # Control classification logic
+    if mean_pitch < 10 and pitch_variation < 5:
+        level = "Excellent Pitch Mastery"
+    elif mean_pitch < 20:
+        level = "Good Pitch Control"
+    elif mean_pitch < 35:
+        level = "Developing Control"
+    else:
+        level = "Unstable Pitch Foundation"
+
     return {
         "average_pitch_error": round(avg_pitch, 2),
-        "pitch_stability_level": level
+        "mean_pitch_error": round(mean_pitch, 2),
+        "pitch_variation": round(pitch_variation, 2),
+        "pitch_control_level": level
     }
 
-
-@router.get("/recommendation")
-def get_recommendation():
-
-    sessions = get_sessions(limit=30)
+#-----------------------------------------
+# Adaptive Practice Recommendation
+#-----------------------------------------
+@router.get("/recommendation-adaptive_plan")
+def get_recommendation(user_id:str):
+    import statistics
+    sessions = get_sessions(user_id=user_id,limit=30)
 
     if not sessions:
         return {"message": "No sessions available."}
@@ -158,14 +183,37 @@ def get_recommendation():
     else:
         suggestion = "Practice slowly. Focus on clean note transitions."
 
-    return {
-        "suggestion": suggestion
-    }
- 
-@router.get("/consistency-details")
-def get_consistency_details():
+    avg_note = statistics.mean(s["note_accuracy"] for s in sessions)
+    avg_pitch = statistics.mean(s["avg_pitch_error"] for s in sessions)
+    pitch_var = statistics.stdev(s["avg_pitch_error"] for s in sessions) if len(sessions) > 1 else 0
 
-    sessions = get_sessions(limit=50)
+    # Decision logic
+    if avg_note > 90 and avg_pitch < 15:
+        tempo = "+10 BPM"
+        focus = "Advanced alankars and speed control"
+    elif avg_pitch > 30:
+        tempo = "-10 BPM"
+        focus = "Embouchure stability and airflow control"
+    elif pitch_var > 15:
+        tempo = "Maintain tempo"
+        focus = "Consistency drills"
+    else:
+        tempo = "Maintain current tempo"
+        focus = "Timing refinement"
+
+    return {
+        
+        "recommended_tempo_adjustment": tempo,
+        "practice_focus": focus,
+        "suggestion": suggestion
+    
+    }
+
+
+@router.get("/consistency-details")
+def get_consistency_details(user_id: str):
+
+    sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 3:
         return {"message": "Not enough sessions."}
@@ -190,74 +238,15 @@ def get_consistency_details():
         "pitch_variation": round(pitch_std, 2),
         "timing_variation": round(time_std, 2),
         "primary_instability_source": main_issue
-    }
+    }    
 
 
-@router.get("/pitch-control")
-def get_pitch_control():
-
-    sessions = get_sessions(limit=50)
-
-    if not sessions:
-        return {"message": "No sessions available."}
-
-    import statistics
-
-    pitch_errors = [s["avg_pitch_error"] for s in sessions]
-
-    mean_pitch = statistics.mean(pitch_errors)
-
-    if len(pitch_errors) > 1:
-        pitch_variation = statistics.stdev(pitch_errors)
-    else:
-        pitch_variation = 0.0
-
-    # Control classification logic
-    if mean_pitch < 10 and pitch_variation < 5:
-        level = "Excellent Pitch Mastery"
-    elif mean_pitch < 20:
-        level = "Good Pitch Control"
-    elif mean_pitch < 35:
-        level = "Developing Control"
-    else:
-        level = "Unstable Pitch Foundation"
+@router.get("/dashboard")
+def get_dashboard(user_id: str):
 
     return {
-        "average_pitch_error": round(mean_pitch, 2),
-        "pitch_variation": round(pitch_variation, 2),
-        "pitch_control_level": level
-    }
-
-
-@router.get("/adaptive-plan")
-def get_adaptive_plan():
-
-    sessions = get_sessions(limit=50)
-
-    if not sessions:
-        return {"message": "No sessions available."}
-
-    import statistics
-
-    avg_note = statistics.mean(s["note_accuracy"] for s in sessions)
-    avg_pitch = statistics.mean(s["avg_pitch_error"] for s in sessions)
-    pitch_var = statistics.stdev(s["avg_pitch_error"] for s in sessions) if len(sessions) > 1 else 0
-
-    # Decision logic
-    if avg_note > 90 and avg_pitch < 15:
-        tempo = "+10 BPM"
-        focus = "Advanced alankars and speed control"
-    elif avg_pitch > 30:
-        tempo = "-10 BPM"
-        focus = "Embouchure stability and airflow control"
-    elif pitch_var > 15:
-        tempo = "Maintain tempo"
-        focus = "Consistency drills"
-    else:
-        tempo = "Maintain current tempo"
-        focus = "Timing refinement"
-
-    return {
-        "recommended_tempo_adjustment": tempo,
-        "practice_focus": focus
+        "summary": build_summary(user_id),
+        "accuracy_series": build_accuracy_series(user_id),
+        "prediction": build_prediction(user_id),
+        "variation": build_variation_metrics(user_id),
     }

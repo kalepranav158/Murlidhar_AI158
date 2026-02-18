@@ -10,12 +10,18 @@ load_dotenv()
 
 _llm_instance = None
 
+
+# check for latest model availability
+# models Available free
+
+
+
 def get_llm():
     global _llm_instance
 
     if _llm_instance is None:
         _llm_instance = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-preview-09-2025",
+            model="gemini-flash-latest",
             temperature=0.4
         )
 

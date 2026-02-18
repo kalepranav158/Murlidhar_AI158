@@ -12,7 +12,6 @@ from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
 from music.song_loader import load_song
 from database.db import save_session
-from app.services.feedback import generate_feedback
 from app.routes.analytics import get_summary
 
 logger = logging.getLogger(__name__)
@@ -146,7 +145,7 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
         ai_feedback = generate_guru_feedback(result)
     except Exception:
        logger.exception("LLM failed, using fallback feedback")
-       ai_feedback = generate_feedback(result)
+       ai_feedback = generate_normal_feedback(result)
 
 
 
@@ -170,3 +169,27 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
             for n in played
         ]
     }
+
+
+
+
+# geenrate feedback when llm fails 
+def generate_normal_feedback(evaluation):
+    feedback = []
+
+    if evaluation["note_accuracy"] < 70:
+        feedback.append("Focus on correct note transitions.")
+    else:
+        feedback.append("Good note accuracy.")
+
+    if evaluation["avg_pitch_error_cents"] > 30:
+        feedback.append("Pitch variation is high. Work on embouchure consistency.")
+    else:
+        feedback.append("Pitch control is stable.")
+
+    if evaluation["avg_timing_error_sec"] > 0.5:
+        feedback.append("Rhythmic stability needs improvement. Slow down and hold notes evenly.")
+    else:
+        feedback.append("Timing is well maintained.")
+
+    return " ".join(feedback)
