@@ -8,6 +8,8 @@ from app.services.analytics_services import (
     build_variation_metrics,
     
 )
+from app.services.dashboard_service import build_dashboard
+
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -240,13 +242,6 @@ def get_consistency_details(user_id: str):
         "primary_instability_source": main_issue
     }    
 
-
 @router.get("/dashboard")
 def get_dashboard(user_id: str):
-
-    return {
-        "summary": build_summary(user_id),
-        "accuracy_series": build_accuracy_series(user_id),
-        "prediction": build_prediction(user_id),
-        "variation": build_variation_metrics(user_id),
-    }
+    return build_dashboard(user_id)

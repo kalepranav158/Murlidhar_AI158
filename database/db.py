@@ -8,7 +8,19 @@ DB_NAME = "practice_sessions.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS analytics_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    timestamp TEXT,
+    average_accuracy REAL,
+    trend_slope REAL,
+    predicted_next_accuracy REAL,
+    consistency_index REAL,
+    difficulty_recommendation TEXT,
+    trend_label TEXT
+)
+""")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,3 +126,56 @@ def get_last_session(user_id: str):
 
     return dict(row) if row else None
 
+def save_analytics_snapshot(user_id: str, snapshot: dict):
+    """
+    Saves structured analytics snapshot into database.
+    """
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO analytics_snapshots (
+            user_id,
+            timestamp,
+            average_accuracy,
+            trend_slope,
+            predicted_next_accuracy,
+            consistency_index,
+            difficulty_recommendation,
+            trend_label
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user_id,
+        datetime.now().isoformat(),
+        snapshot.get("average_accuracy"),
+        snapshot.get("trend_slope"),
+        snapshot.get("predicted_next_accuracy"),
+        snapshot.get("consistency_index"),
+        snapshot.get("difficulty_recommendation"),
+        snapshot.get("trend_label")
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+
+def get_latest_analytics_snapshot(user_id: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM analytics_snapshots
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (user_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None

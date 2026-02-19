@@ -1,6 +1,8 @@
 import statistics
 import numpy as np
 from database.db import get_sessions
+from database.db import save_analytics_snapshot
+from app.services.llm.analytics_context_builder import build_analytics_context
 
 
 def get_user_sessions(user_id: str, limit: int = 100):
@@ -103,3 +105,6 @@ def build_summary(user_id: str, limit: int = 100):
         "avg_pitch_error": round(avg_pitch, 2),
         "best_accuracy": max(s["note_accuracy"] for s in sessions),
     }
+
+
+
