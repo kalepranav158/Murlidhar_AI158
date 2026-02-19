@@ -8,12 +8,12 @@ class PlayedNote(BaseModel):
     time: float
 
 
-class EvaluationResult(BaseModel):
+class EvaluationResult(BaseModel):   # -> this is used in PracticeResponse just below 
     note_accuracy: float
     avg_pitch_error_cents: Optional[float]
     avg_timing_error_sec: Optional[float]
     mistakes: List[dict]
-    feedback: str
+    feedback: dict
 
 
 class PracticeResponse(BaseModel):
@@ -22,3 +22,8 @@ class PracticeResponse(BaseModel):
     dtw_cost: float
     evaluation: EvaluationResult
     played_notes: List[PlayedNote]
+
+
+
+
+    

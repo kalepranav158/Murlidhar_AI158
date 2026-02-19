@@ -1,13 +1,19 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.messages import HumanMessage
-
 from app.services.llm.gemini_client import get_llm
 from app.services.llm.memory_store import get_user_memory
 from app.services.llm.context_builder import build_practice_context
 from app.services.llm.analytics_context_builder import build_analytics_context
 from app.services.llm.rag_retriever import retrieve_context
-
+from app.schemas.Pydantic_schemas import (
+    CoachingModeResponse,
+    KnowledgeModeResponse,
+    HybridModeResponse,
+    LivePracticeResponse,
+)
+import json
 
 # ----------------------------------
 # Intent Classification
@@ -81,39 +87,28 @@ def ask_guru(user_id: str, question: str):
     # MODE A — PERFORMANCE COACHING
     # ----------------------------------
     if intent == "coaching":
+        parser = PydanticOutputParser(pydantic_object=CoachingModeResponse)
 
-        system_prompt = """
+        system_prompt = f"""
 You are an Experienced Hindustani Bansuri Guru.
 
 You are in PERFORMANCE ANALYSIS mode.
 
-You must:
-- Analyze measurable metrics precisely.
-- Interpret pitch deviation, timing lag, accuracy percentage.
-- Diagnose breath control, embouchure stability, fingering clarity, and laya alignment.
-- Use analytics trend data when available.
-- Provide structured, technical corrections.
-- Avoid theoretical raga explanation unless required.
+Respond ONLY in valid JSON.
+
+{parser.get_format_instructions()}
+
+Instructions:
+- Each field must contain detailed explanation.
+- Write technically.
+- No markdown.
+- No text outside JSON.
 
 Practice Context:
-{practice_context}
+{{practice_context}}
 
 Performance Analytics:
-{analytics_context}
-
-Respond strictly in this format:
-
-1. Technical Assessment
-2. Root Cause Analysis
-3. Corrective Technique Guidance
-4. Structured Practice Plan
-5. Discipline Note
-
-Constraints:
-- No emojis
-- No exaggerated praise
-- No vague motivation
-- Concise and authoritative
+{{analytics_context}}
 """
 
         prompt = ChatPromptTemplate.from_messages([
@@ -126,35 +121,29 @@ Constraints:
     # MODE B — KNOWLEDGE TEACHING
     # ----------------------------------
     elif intent == "knowledge":
+        parser = PydanticOutputParser(pydantic_object=KnowledgeModeResponse)
 
-        system_prompt = """
+
+        system_prompt = f"""
 You are a scholarly Hindustani Classical Music Guru.
 
 You are in THEORY TEACHING mode.
 
-Use the retrieved knowledge base content to answer accurately.
-Do NOT analyze user performance.
-Do NOT mention pitch error or timing metrics.
+Respond ONLY in valid JSON.
+
+{parser.get_format_instructions()}
+
+Instructions:
+- Provide structured explanation.
+- No markdown.
+- No emojis.
+- No performance analysis.
+- No text outside JSON.
 
 Knowledge Base Context:
-{rag_context}
-
-Structure explanation:
-
-1. Thaat
-2. Aaroha
-3. Avaroha
-4. Vadi & Samvadi
-5. Important Phrases (Pakad)
-6. Time & Rasa
-7. Bansuri Playing Notes
-
-Constraints:
-- Professional tone
-- No emojis
-- No motivational language
-- Structured explanation
+{{rag_context}}
 """
+
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -166,39 +155,32 @@ Constraints:
     # MODE C — HYBRID
     # ----------------------------------
     else:  # hybrid
+        parser = PydanticOutputParser(pydantic_object=HybridModeResponse)
 
-        system_prompt = """
+        system_prompt = f"""
 You are an advanced Hindustani Bansuri Guru.
 
 You are in HYBRID ANALYSIS mode.
 
-You must:
-- Explain relevant theory using Knowledge Context.
-- Analyze user performance using Practice Context.
-- Use analytics trend if available.
-- Connect theoretical structure to performance deviation.
+Respond ONLY in valid JSON.
+
+{parser.get_format_instructions()}
+
+Instructions:
+- Combine theory and performance.
+- Use analytics when relevant.
+- No markdown.
+- No emojis.
+- No text outside JSON.
 
 Practice Context:
-{practice_context}
+{{practice_context}}
 
 Performance Analytics:
-{analytics_context}
+{{analytics_context}}
 
 Knowledge Context:
-{rag_context}
-
-Structure response:
-
-1. Theoretical Clarification
-2. Performance Diagnosis
-3. Root Technical Cause
-4. Integrated Correction Plan
-5. Discipline Note
-
-Constraints:
-- No emojis
-- Professional tone
-- No generic praise
+{{rag_context}}
 """
 
         prompt = ChatPromptTemplate.from_messages([
@@ -211,7 +193,7 @@ Constraints:
     # Chain Execution
     # ----------------------------------
 
-    chain = prompt | llm
+    chain = prompt | llm |parser
 
     runnable = RunnableWithMessageHistory(
         chain,
@@ -229,5 +211,13 @@ Constraints:
         },
         config={"configurable": {"session_id": user_id}},
     )
+    
+    try:
+       return response.dict()
 
-    return response.content
+    except Exception as e:
+        return {
+        "mode": "error",
+        "description": "LLM output parsing failed",
+        "error_details": str(e),
+    }
