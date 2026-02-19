@@ -89,26 +89,39 @@ def ask_guru(user_id: str, question: str):
     if intent == "coaching":
         parser = PydanticOutputParser(pydantic_object=CoachingModeResponse)
 
-        system_prompt = f"""
-You are an Experienced Hindustani Bansuri Guru.
+        format_instructions = parser.get_format_instructions()
 
-You are in PERFORMANCE ANALYSIS mode.
+        system_prompt = """
+You are a senior Hindustani classical flute guru.
 
-Respond ONLY in valid JSON.
+You are in PERFORMANCE COACHING mode.
 
-{parser.get_format_instructions()}
+You MUST respond ONLY in valid JSON.
 
-Instructions:
-- Each field must contain detailed explanation.
-- Write technically.
-- No markdown.
-- No text outside JSON.
+The JSON must match exactly this schema:
 
-Practice Context:
-{{practice_context}}
+{{
+  "mode": "coaching",
+  "description": "Structured performance analysis and corrective guidance.",
+  "technical_assessment": string,
+  "root_cause_analysis": string,
+  "corrective_guidance": string,
+  "structured_practice_plan": string,
+  "discipline_note": string,
+  "improvement_priority": "pitch_control" | "rhythm_stability" | "breath_control" | "consistency" | "overall_refinement",
+  "confidence_score": float
+}}
 
-Performance Analytics:
-{{analytics_context}}
+Rules:
+- improvement_priority MUST be exactly one of the allowed values
+- confidence_score must be between 0 and 1
+- Do not add extra keys
+- Do not rename fields
+- Do not nest objects
+- Do not include explanations outside JSON
+- No markdown
+- No headings
+- Only raw JSON
 """
 
         prompt = ChatPromptTemplate.from_messages([
@@ -123,32 +136,61 @@ Performance Analytics:
     elif intent == "knowledge":
         parser = PydanticOutputParser(pydantic_object=KnowledgeModeResponse)
 
+        format_instructions = parser.get_format_instructions()
+        system_prompt = """
+You are a scholarly authority in Hindustani classical music theory.
 
-        system_prompt = f"""
-You are a scholarly Hindustani Classical Music Guru.
+You are in KNOWLEDGE TEACHING mode.
 
-You are in THEORY TEACHING mode.
+You MUST respond ONLY in valid JSON.
 
-Respond ONLY in valid JSON.
+The JSON must match exactly this schema:
 
-{parser.get_format_instructions()}
+{{
+  "mode": "knowledge",
+  "description": "Scholarly explanation of Hindustani classical theory.",
+  "topic": string,
+  "thaat": string,
+  "aaroha": string,
+  "avaroha": string,
+  "vadi": string,
+  "samvadi": string,
+  "pakad": string,
+  "time_of_performance": string,
+  "rasa": string,
+  "bansuri_playing_guidance": string,
+  "historical_context": string,
+  "confidence_score": float
+}}
 
-Instructions:
-- Provide structured explanation.
-- No markdown.
-- No emojis.
-- No performance analysis.
-- No text outside JSON.
+Rules:
+- All fields are mandatory
+- confidence_score must be between 0 and 1
+- Do not add extra keys
+- Do not rename fields
+- Do not omit fields
+- Do not include performance diagnostics
+- Do not include explanations outside JSON
+- No markdown
+- No headings
+- Only raw JSON
+"""
 
-Knowledge Base Context:
-{{rag_context}}
+
+        human_prompt = """
+Explain the following topic in structured classical format:
+
+Topic:
+{input}
+
+Use authentic Hindustani classical terminology.
 """
 
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}")
+            ("human",human_prompt)
         ])
 
     # ----------------------------------
@@ -156,37 +198,55 @@ Knowledge Base Context:
     # ----------------------------------
     else:  # hybrid
         parser = PydanticOutputParser(pydantic_object=HybridModeResponse)
-
-        system_prompt = f"""
+        format_instructions = parser.get_format_instructions()
+        system_prompt = """
 You are an advanced Hindustani Bansuri Guru.
 
 You are in HYBRID ANALYSIS mode.
 
-Respond ONLY in valid JSON.
+You MUST respond ONLY in valid JSON.
 
-{parser.get_format_instructions()}
+The JSON must match exactly this schema:
 
-Instructions:
-- Combine theory and performance.
-- Use analytics when relevant.
-- No markdown.
-- No emojis.
-- No text outside JSON.
+{{
+  "mode": "hybrid",
+  "description": "Integrated theoretical explanation with performance diagnosis.",
+  "theoretical_clarification": string,
+  "performance_diagnosis": string,
+  "root_technical_cause": string,
+  "integrated_correction_plan": string,
+  "discipline_note": string,
+  "key_performance_risk": "pitch_drift" | "rhythm_instability" | "breath_inconsistency" | "technical_execution" | "interpretational_weakness",
+  "confidence_score": float
+}}
 
-Practice Context:
-{{practice_context}}
-
-Performance Analytics:
-{{analytics_context}}
-
-Knowledge Context:
-{{rag_context}}
+Rules:
+- key_performance_risk MUST be exactly one of the allowed values
+- confidence_score must be between 0 and 1
+- Do not add extra keys
+- Do not rename fields
+- Do not omit required fields
+- Do not include explanations outside JSON
+- No markdown
+- No headings
+- Only raw JSON
 """
+
+        human_prompt = """
+Student Performance Data:
+{performance_metrics}
+
+Relevant Theory Context:
+{rag_context}
+
+Provide integrated diagnosis and correction.
+"""
+
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}")
+            ("human", human_prompt)
         ])
 
     # ----------------------------------
@@ -208,6 +268,7 @@ Knowledge Context:
             "practice_context": practice_context or "",
             "analytics_context": analytics_context or "",
             "rag_context": rag_context or "",
+            "format_instructions": parser.get_format_instructions()
         },
         config={"configurable": {"session_id": user_id}},
     )

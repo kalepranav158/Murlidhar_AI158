@@ -21,8 +21,9 @@ def get_llm():
 
     if _llm_instance is None:
         _llm_instance = ChatGoogleGenerativeAI(
-            model="gemini-flash-latest",
-            temperature=0.4
+            model="gemini-2.5-flash",
+            temperature=0.0,
+            top_p=1.0,
         )
 
     return _llm_instance
