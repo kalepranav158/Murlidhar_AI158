@@ -13,7 +13,7 @@ class EvaluationResult(BaseModel):   # -> this is used in PracticeResponse just 
     avg_pitch_error_cents: Optional[float]
     avg_timing_error_sec: Optional[float]
     mistakes: List[dict]
-    feedback: dict
+    feedback: Optional[str | dict]
 
 
 class PracticeResponse(BaseModel):

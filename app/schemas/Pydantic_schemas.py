@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Literal, Union
+from typing import List, Literal, Union, Annotated
 
 
 # ============================================================
@@ -73,22 +73,45 @@ class CoachingModeResponse(BaseModel):
 
 class KnowledgeModeResponse(BaseModel):
     mode: Literal["knowledge"]
+
+    subtype: Literal["raga", "instrument", "technique"]
+
     description: str = Field(
-        default="Scholarly explanation of Hindustani classical theory."
+        default="Structured Hindustani classical knowledge response."
     )
 
     topic: str
-    thaat: str
-    aaroha: str
-    avaroha: str
-    vadi: str
-    samvadi: str
-    pakad: str
-    time_of_performance: str
-    rasa: str
 
-    bansuri_playing_guidance: str
-    historical_context: str
+    # Optional fields depending on subtype
+    thaat: str | None = None
+    aaroha: str | None = None
+    avaroha: str | None = None
+    vadi: str | None = None
+    samvadi: str | None = None
+    pakad: str | None = None
+    time_of_performance: str | None = None
+    rasa: str | None = None
+
+    bansuri_playing_guidance: str | None = None
+    historical_context: str | None = None
+
+    # Instrument fields
+    origin_history: str | None = None
+    evolution: str | None = None
+    construction_materials: str | None = None
+    acoustic_principle: str | None = None
+    global_flute_comparison: str | None = None
+    role_in_hindustani_music: str | None = None
+    modern_development: str | None = None
+
+    # Technique fields
+    technique_name: str | None = None
+    technical_explanation: str | None = None
+    biomechanics: str | None = None
+    tonal_impact: str | None = None
+    common_errors: str | None = None
+    correction_methodology: str | None = None
+    advanced_mastery_notes: str | None = None
 
     confidence_score: float = Field(..., ge=0, le=1)
 
@@ -119,14 +142,23 @@ class HybridModeResponse(BaseModel):
 
     confidence_score: float = Field(..., ge=0, le=1)
 
+class ErrorResponse(BaseModel):
+    mode: Literal["error"]
+    description: str
+    error_details: str
+
 
 # ============================================================
 # 6️⃣ Unified Response Type (Discriminated Union)
 # ============================================================
 
-LLMResponse = Union[
-    LivePracticeResponse,
-    CoachingModeResponse,
-    KnowledgeModeResponse,
-    HybridModeResponse,
+ASKResponse = Annotated[
+    Union[
+        LivePracticeResponse,
+        CoachingModeResponse,
+        KnowledgeModeResponse,
+        HybridModeResponse,
+        ErrorResponse
+    ],
+    Field(discriminator="mode")
 ]

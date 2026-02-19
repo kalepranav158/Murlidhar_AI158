@@ -13,59 +13,9 @@ from app.schemas.Pydantic_schemas import (
     HybridModeResponse,
     LivePracticeResponse,
 )
+from app.services.llm.llm_modes import classify_intent, classify_knowledge_subtype
 import json
 
-# ----------------------------------
-# Intent Classification
-# ----------------------------------
-def classify_intent(question: str) -> str:
-    """
-    Uses LLM to classify user query intent.
-    Returns: 'coaching', 'knowledge', or 'hybrid'
-    """
-
-    llm = get_llm()
-
-    classification_prompt = f"""
-You are an intent classifier for a Hindustani Classical Music AI tutor.
-
-Classify the user query into one of these categories:
-
-- coaching → performance, mistakes, pitch, timing, improvement
-- knowledge → raagas, theory, structure, techniques
-- hybrid → theory + personal performance connection
-
-Respond with ONLY one word:
-coaching
-knowledge
-or
-hybrid
-
-User Query:
-{question}
-"""
-
-    response = llm.invoke([HumanMessage(content=classification_prompt)])
-
-    content = response.content
-
-    if isinstance(content, list):
-    # Extract text safely
-        text = "".join(
-        item.get("text", "")
-        for item in content
-        if isinstance(item, dict)
-    )
-    else:
-        text = content
-
-    intent = text.strip().lower()
-
-
-    if intent not in ["coaching", "knowledge", "hybrid"]:
-        return "knowledge"
-
-    return intent
 
 
 # ----------------------------------
@@ -135,45 +85,77 @@ Rules:
     # ----------------------------------
     elif intent == "knowledge":
         parser = PydanticOutputParser(pydantic_object=KnowledgeModeResponse)
-
+        intent_subtype = classify_knowledge_subtype(question)
         format_instructions = parser.get_format_instructions()
         system_prompt = """
 You are a scholarly authority in Hindustani classical music theory.
 
 You are in KNOWLEDGE TEACHING mode.
-
+{{intent_subtype}} is the subtype of the question, which can be "raga", "instrument", or "technique". The response must be structured according to the subtype.
+{{format_instructions}}
 You MUST respond ONLY in valid JSON.
 
-The JSON must match exactly this schema:
+The JSON must match this schema:
 
 {{
   "mode": "knowledge",
-  "description": "Scholarly explanation of Hindustani classical theory.",
+  "subtype": "raga" | "instrument" | "technique",
+  "description": "Structured Hindustani classical knowledge response.",
   "topic": string,
-  "thaat": string,
-  "aaroha": string,
-  "avaroha": string,
-  "vadi": string,
-  "samvadi": string,
-  "pakad": string,
-  "time_of_performance": string,
-  "rasa": string,
-  "bansuri_playing_guidance": string,
-  "historical_context": string,
+
+  // RAGA FIELDS (required if subtype="raga")
+  "thaat": string | null,
+  "aaroha": string | null,
+  "avaroha": string | null,
+  "vadi": string | null,
+  "samvadi": string | null,
+  "pakad": string | null,
+  "time_of_performance": string | null,
+  "rasa": string | null,
+  "bansuri_playing_guidance": string | null,
+  "historical_context": string | null,
+
+  // INSTRUMENT FIELDS (required if subtype="instrument")
+  "origin_history": string | null,
+  "evolution": string | null,
+  "construction_materials": string | null,
+  "acoustic_principle": string | null,
+  "global_flute_comparison": string | null,
+  "role_in_hindustani_music": string | null,
+  "modern_development": string | null,
+
+  // TECHNIQUE FIELDS (required if subtype="technique")
+  "technique_name": string | null,
+  "technical_explanation": string | null,
+  "biomechanics": string | null,
+  "tonal_impact": string | null,
+  "common_errors": string | null,
+  "correction_methodology": string | null,
+  "advanced_mastery_notes": string | null,
+
   "confidence_score": float
 }}
 
-Rules:
-- All fields are mandatory
-- confidence_score must be between 0 and 1
-- Do not add extra keys
-- Do not rename fields
-- Do not omit fields
-- Do not include performance diagnostics
-- Do not include explanations outside JSON
-- No markdown
-- No headings
-- Only raw JSON
+CRITICAL RULES:
+{{
+1. If subtype="raga":
+   - All raga fields MUST be filled.
+   - Instrument and technique fields MUST be null.
+
+2. If subtype="instrument":
+   - All instrument fields MUST be filled.
+   - Raga and technique fields MUST be null.
+
+3. If subtype="technique":
+   - All technique fields MUST be filled.
+   - Raga and instrument fields MUST be null.
+
+4. Do not invent raga data if question is about instrument.
+5. Do not add extra keys.
+6. Do not include explanations outside JSON.
+7. No markdown.
+8. Only raw JSON.
+}}
 """
 
 
