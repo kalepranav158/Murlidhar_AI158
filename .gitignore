@@ -31,3 +31,11 @@ app/vector_db/
 # -------------------------
 .DS_Store
 Thumbs.db
+
+# -------------------------
+# txt files
+# -------------------------
+imp_commands.txt
+learnings.txt
+problems.txt
+

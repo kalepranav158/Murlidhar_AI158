@@ -1,15 +1,8 @@
-from fastapi import APIRouter
-from database.db import get_sessions
+from fastapi import APIRouter, Query
+from database.db import get_last_session, get_sessions
 import statistics
-from app.services.analytics_services import (
-    build_accuracy_series,
-    build_prediction,
-    build_summary,
-    build_variation_metrics,
-    
-)
 from app.services.dashboard_service import build_dashboard
-
+from app.future_plans.test_dashboard import analytics_dashboard
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -245,3 +238,24 @@ def get_consistency_details(user_id: str):
 @router.get("/dashboard")
 def get_dashboard(user_id: str):
     return build_dashboard(user_id)
+
+
+@router.get("/test-dashboard")
+def test_dashboard(user_id: str):
+    return analytics_dashboard(user_id=user_id)
+
+
+@router.get("/analytics/radar")
+def radar(user_id: str = Query(...)):
+
+    session = get_last_session(user_id)
+
+    if not session:
+        return {"error": "No sessions found"}
+
+    return {
+        "pitch": session["pitch_index"],
+        "rhythm": session["rhythm_index"],
+        "consistency": session["consistency_index"],
+        "overall": session["composite_score"]
+    }

@@ -1,3 +1,4 @@
+
 def evaluate(alignment):
     """
     Evaluate a DTW alignment between reference notes and played notes.
@@ -59,7 +60,7 @@ def evaluate(alignment):
         avg_timing_error = round(
             sum(timing_errors) / len(timing_errors), 2
         )
-
+    
     return {
         "note_accuracy": note_accuracy,
         "avg_pitch_error_cents": avg_pitch_error,

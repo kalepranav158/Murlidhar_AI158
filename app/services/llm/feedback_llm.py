@@ -30,7 +30,7 @@ The JSON must match exactly this schema:
   "corrective_guidance": string,
   "structured_practice_plan": string,
   "mistake_breakdown": string,
-  "confidence_score": float
+  "confidence_score": float(Must be between 0 and 1,if note then normalized between 0 and 1)
 }}
 
 Rules:
@@ -63,3 +63,27 @@ Mistakes: {result['mistakes']}
     })
 
     return response.dict()
+
+
+
+
+# geenrate feedback when llm fails 
+def generate_normal_feedback(evaluation):
+    feedback = []
+
+    if evaluation["note_accuracy"] < 70:
+        feedback.append("Focus on correct note transitions.")
+    else:
+        feedback.append("Good note accuracy.")
+
+    if evaluation["avg_pitch_error_cents"] > 30:
+        feedback.append("Pitch variation is high. Work on embouchure consistency.")
+    else:
+        feedback.append("Pitch control is stable.")
+
+    if evaluation["avg_timing_error_sec"] > 0.5:
+        feedback.append("Rhythmic stability needs improvement. Slow down and hold notes evenly.")
+    else:
+        feedback.append("Timing is well maintained.")
+
+    return " ".join(feedback)

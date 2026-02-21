@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
     trend_label TEXT
 )
 """)
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

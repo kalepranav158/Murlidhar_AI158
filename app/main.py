@@ -17,6 +17,18 @@ logging.basicConfig(
 
 app = FastAPI(title="Murlidhar AI - Flute Tutor API")
 
+
+# always initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    from database.db import init_db
+    init_db()
+
+
+
+
+
+
 app.include_router(practice.router)
 app.include_router(songs.router)
 app.include_router(sessions.router)
