@@ -18,10 +18,15 @@ logger = logging.getLogger(__name__)
 
 HOP_SIZE = 512
 
-async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
+async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
 
     logger.info(f"Practice request: song={song_id}, phrase={phrase_index}")
 
+    #validate Tempo value
+    if tempo is None or tempo <= 0:
+        raise HTTPException(status_code=400, detail="Valid tempo required")
+    
+    
     # ----------------------------------
     # Validate File Type
     # ----------------------------------
@@ -59,9 +64,6 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
 
     if not reference:
         raise HTTPException(status_code=500, detail="Reference phrase empty")
-
-
-
 
     # ----------------------------------
     # Save Temporary File Safely
@@ -128,9 +130,37 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
     try:
         cost, alignment = dtw_align(reference, played)
         result = evaluate(alignment)
+
+# ------------Real Tempo Extraction-----------------------------------------------------------------------------------------
+        real_bpm = None
+        tempo_variance = None
+        tempo_deviation = None
+
+        if len(played) >= 2:
+            note_times = [n["time"] for n in played]
+            intervals = np.diff(note_times)
+
+            if len(intervals) > 0:
+                mean_interval = np.mean(intervals)
+
+                if mean_interval > 0:
+                    real_bpm = 60 / mean_interval
+                    tempo_variance = float(np.std(intervals))
+
+        reference_bpm = tempo  # ← USER PASSED TEMPO
+
+        if real_bpm is not None:
+            tempo_deviation = real_bpm - reference_bpm
+
+        result["real_bpm"] = float(real_bpm) if real_bpm else None
+        result["tempo_variance"] = tempo_variance
+        result["tempo_deviation"] = float(tempo_deviation) if tempo_deviation else None
+        result["reference_bpm"] = reference_bpm
+        print(f"Real BPM: {real_bpm}, Reference BPM: {reference_bpm}, Tempo Deviation: {tempo_deviation}")
     except Exception:
         logger.exception("DTW evaluation failed")
         raise HTTPException(status_code=500, detail="Evaluation failed")
+#---------------------------------------------------------------------------------------------------
 
     save_session(user_id=user_id, reference=reference, played=played, result=result)
 
@@ -144,9 +174,16 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
     except Exception:
        logger.exception("LLM failed, using fallback feedback")
        ai_feedback = generate_normal_feedback(result)
+    
+    adaptive_plan = generate_adaptive_plan(
+    user_id=user_id,
+    base_bpm=tempo,
+    real_bpm=result["real_bpm"],
+    reference_bpm=result.get("reference_bpm"),
+    tempo_deviation=result.get("tempo_deviation")
+)
 
-
-
+    print(f"Adaptive Plan: {adaptive_plan}")
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
@@ -158,6 +195,7 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index):
             "mistakes": result["mistakes"],
             "feedback":ai_feedback,
         },
+        "adaptive_plan": adaptive_plan,
         "played_notes": [
             {
                 "note": n["note"],

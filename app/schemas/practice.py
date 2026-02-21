@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from app.schemas.Pydantic_schemas import AdaptivePlan
+
 
 
 class PlayedNote(BaseModel):
@@ -14,13 +16,14 @@ class EvaluationResult(BaseModel):   # -> this is used in PracticeResponse just 
     avg_timing_error_sec: Optional[float]
     mistakes: List[dict]
     feedback: Optional[str | dict]
-
+    
 
 class PracticeResponse(BaseModel):
     song: str
     phrase_index: int
     dtw_cost: float
     evaluation: EvaluationResult
+    adaptive_plan: AdaptivePlan
     played_notes: List[PlayedNote]
 
 

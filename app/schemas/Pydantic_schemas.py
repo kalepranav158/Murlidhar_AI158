@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Literal, Union, Annotated
+from typing import List, Literal, Union, Annotated,Optional
 
 
 # ============================================================
@@ -162,3 +162,13 @@ ASKResponse = Annotated[
     ],
     Field(discriminator="mode")
 ]
+
+class AdaptivePlan(BaseModel):
+    adaptive_enabled: bool
+    recommended_tempo: int  
+    focus_area: str
+    plateau_intervention: bool
+    tempo_feedback: str
+    real_bpm: float
+    reference_bpm: int
+    tempo_deviation: float   

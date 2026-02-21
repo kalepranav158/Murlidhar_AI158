@@ -49,6 +49,7 @@ Accuracy: {result['note_accuracy']}%
 Pitch Error: {result['avg_pitch_error_cents']} cents
 Timing Error: {result['avg_timing_error_sec']} sec
 Mistakes: {result['mistakes']}
+
 """
 
     prompt = ChatPromptTemplate.from_messages([

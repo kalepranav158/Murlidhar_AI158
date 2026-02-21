@@ -9,11 +9,12 @@ router = APIRouter(prefix="/practice", tags=["Practice"])
 async def practice(
     user_id: str,
     song_id: str,
-    phrase_index: int,
-    
+    tempo: int = 60,
+    phrase_index: int = 0,
+
     file: UploadFile = File(...),
 ):
-        return await evaluate_audio(user_id,file, song_id, phrase_index)
+        return await evaluate_audio(user_id,file, song_id, phrase_index, tempo)
 
 
 
