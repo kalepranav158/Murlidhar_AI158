@@ -5,13 +5,13 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
-def generate_guru_feedback(result: dict):
+def generate_guru_feedback(result: dict, adaptive_plan: dict):
 
     llm = get_llm()
 
     parser = PydanticOutputParser(pydantic_object=LivePracticeResponse)
 
-    system_prompt =system_prompt = """
+    system_prompt = """
 You are a senior Hindustani classical flute guru.
 
 You MUST respond ONLY in valid JSON.
@@ -30,6 +30,7 @@ The JSON must match exactly this schema:
   "corrective_guidance": string,
   "structured_practice_plan": string,
   "mistake_breakdown": string,
+  "tempo_adjustment_recommendation": string,
   "confidence_score": float(Must be between 0 and 1,if note then normalized between 0 and 1)
 }}
 
@@ -42,14 +43,14 @@ Rules:
 - Only raw JSON
 """
 
-
     human_prompt = f"""
 Performance Data:
 Accuracy: {result['note_accuracy']}%
 Pitch Error: {result['avg_pitch_error_cents']} cents
 Timing Error: {result['avg_timing_error_sec']} sec
 Mistakes: {result['mistakes']}
-
+Real BPM Played: {adaptive_plan['real_bpm']}
+Tempo Feedback: {adaptive_plan['tempo_feedback']}  
 """
 
     prompt = ChatPromptTemplate.from_messages([

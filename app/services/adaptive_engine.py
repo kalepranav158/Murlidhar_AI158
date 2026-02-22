@@ -75,44 +75,97 @@ def generate_adaptive_plan(
     # ----------------------------------
 
     tempo_feedback = "Tempo stable"
-
     if tempo_deviation is not None and reference_bpm is not None:
 
-        if tempo_deviation < -5:
-            tempo -= 5
-            tempo_feedback = "You are dragging. Stabilize rhythm at lower tempo."
-
-        elif tempo_deviation > 5:
-            tempo -= 5
-            tempo_feedback = "You are rushing. Slow down to regain control."
-
-        else:
+    # Ignore tiny fluctuations (human tolerance zone)
+        if abs(tempo_deviation) < 3:
             tempo_feedback = "Tempo control is stable."
 
-    # Prevent negative or unrealistic tempo
-    if tempo < 30:
-        tempo = 30
+        else:
+        # Proportional correction (30% of deviation)
+            correction = int(tempo_deviation * 0.3)
+  
+        # Adjust toward intended tempo smoothly
+            tempo = reference_bpm - correction
 
+        # Clamp tempo within safe musical range
+            tempo = max(40, min(tempo, 160))
+
+            if tempo_deviation < 0:
+                tempo_feedback = "You are dragging. Increasing tempo slightly to improve rhythmic stability."
+
+            elif tempo_deviation > 0:
+                tempo_feedback = "You are rushing. Reducing tempo to regain rhythmic control."
     # ----------------------------------
     # Weakest Skill Targeting
     # ----------------------------------
 
     focus_area = detect_weakest_area({
-        "pitch_stability_index": analytics["indices"]["pitch_index"],
-        "rhythm_stability_index": analytics["indices"]["rhythm_index"],
-        "consistency_index": analytics["indices"]["consistency_index"]
-    })
+    "pitch_stability_index": analytics["indices"]["pitch_index"],
+    "rhythm_stability_index": analytics["indices"]["rhythm_index"],
+    "consistency_index": analytics["indices"]["consistency_index"]
+})
+
+# ----------------------------------
+# Skill Targeting Injection
+# ----------------------------------
+
+    target_drill = None
+    exercise_mode = None
+    variation_strategy = None
+
+    if focus_area == "Long Note Swar Sadhana":
+        target_drill = "Long Tone Practice"
+        exercise_mode = "Isolated Notes"
+        variation_strategy = "Hold each swara for 12 seconds with tanpura drone"
+
+    elif focus_area == "Slow Metronome Alankars":
+        target_drill = "Rhythmic Alankar"
+        exercise_mode = "Metronome Locked"
+        variation_strategy = "Play current alankar at 80% tempo with strict beat alignment"
+ 
+    else:
+        target_drill = "Controlled Repetition Drill"
+        exercise_mode = "Phrase Loop"
+        variation_strategy = "Repeat phrase 5 times without tempo fluctuation"
+
+
+
+# ----------------------------------
+# Plateau Intervention System
+# ----------------------------------
+
+    if plateau_flag:
+
+        # Only increase tempo if rhythm is reasonably stable
+        if rhythm_index > 0.7:
+           tempo += 5
+           tempo_feedback += " Plateau detected — tempo slightly increased to break stagnation."
+
+        # Override drill strategy
+        exercise_mode = "Variation Shift"
+        variation_strategy = (
+        "Switch to reverse alankar pattern or apply tempo modulation "
+        "(slow-fast-slow cycle) to break performance plateau."
+    )
+
+        target_drill = "Pattern Disruption Drill"
+
+
 
     return {
-        "adaptive_enabled": True,
-        "recommended_tempo": tempo,
-        "focus_area": focus_area,
-        "plateau_intervention": plateau_flag,
-        "tempo_feedback": tempo_feedback,
-        "real_bpm": real_bpm,
-        "reference_bpm": reference_bpm,
-        "tempo_deviation": tempo_deviation
-    }
+    "adaptive_enabled": True,
+    "recommended_tempo": tempo,
+    "focus_area": focus_area,
+    "target_drill": target_drill,
+    "exercise_mode": exercise_mode,
+    "variation_strategy": variation_strategy,
+    "plateau_intervention": plateau_flag,
+    "tempo_feedback": tempo_feedback,
+    "real_bpm": real_bpm,
+    "reference_bpm": reference_bpm,
+    "tempo_deviation": tempo_deviation
+}
 
 
 

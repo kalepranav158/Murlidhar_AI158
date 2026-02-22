@@ -36,6 +36,7 @@ class LivePracticeResponse(BaseModel):
     structured_practice_plan: str
 
     mistake_breakdown:str
+    tempo_adjustment_recommendation: str
 
     confidence_score: float = Field(..., ge=0, le=1)
 
@@ -163,12 +164,17 @@ ASKResponse = Annotated[
     Field(discriminator="mode")
 ]
 
+
+
 class AdaptivePlan(BaseModel):
     adaptive_enabled: bool
-    recommended_tempo: int  
-    focus_area: str
-    plateau_intervention: bool
-    tempo_feedback: str
-    real_bpm: float
-    reference_bpm: int
-    tempo_deviation: float   
+    recommended_tempo: Optional[int] = None
+    focus_area: Optional[str] = None
+    target_drill: Optional[str] = None
+    exercise_mode: Optional[str] = None
+    variation_strategy: Optional[str] = None
+    plateau_intervention: Optional[bool] = None
+    tempo_feedback: Optional[str] = None
+    real_bpm: Optional[float] = None
+    reference_bpm: Optional[int] = None
+    tempo_deviation: Optional[float] = None

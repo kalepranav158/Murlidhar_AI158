@@ -161,19 +161,25 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
         logger.exception("DTW evaluation failed")
         raise HTTPException(status_code=500, detail="Evaluation failed")
 #---------------------------------------------------------------------------------------------------
+    # Compute per-session indices
+    pitch_index = max(0, 1 - (result["avg_pitch_error_cents"] / 50))
+    rhythm_index = max(0, 1 - (result["avg_timing_error_sec"] / 1))
+    consistency_index = 1  # single session, assume stable
+
+    composite_score = (
+        0.4 * (result["note_accuracy"] / 100) +
+        0.3 * pitch_index +
+        0.3 * rhythm_index
+    )
+
+    result["pitch_index"] = round(pitch_index, 3)
+    result["rhythm_index"] = round(rhythm_index, 3)
+    result["consistency_index"] = round(consistency_index, 3)
+    result["composite_score"] = round(composite_score, 3)
 
     save_session(user_id=user_id, reference=reference, played=played, result=result)
 
     logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
-    
-
-
-    # generate feedback using LLM with fallback
-    try:
-        ai_feedback = generate_guru_feedback(result)
-    except Exception:
-       logger.exception("LLM failed, using fallback feedback")
-       ai_feedback = generate_normal_feedback(result)
     
     adaptive_plan = generate_adaptive_plan(
     user_id=user_id,
@@ -183,6 +189,16 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
     tempo_deviation=result.get("tempo_deviation")
 )
 
+
+
+    # generate feedback using LLM with fallback
+    try:
+        ai_feedback = generate_guru_feedback(result,adaptive_plan)
+    except Exception:
+       logger.exception("LLM failed, using fallback feedback")
+       ai_feedback = generate_normal_feedback(result)
+    
+  
     print(f"Adaptive Plan: {adaptive_plan}")
     return {
         "song": song["title"],

@@ -2,7 +2,7 @@ import sqlite3
 import json
 from datetime import datetime
 
-DB_NAME = "practice_sessions.db"
+DB_NAME = "Practice_data.db"
 
 
 def init_db():
@@ -23,17 +23,21 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
 """)
     
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,
-        timestamp TEXT,
-        reference TEXT,
-        played_notes TEXT,
-        note_accuracy REAL,
-        avg_pitch_error REAL,
-        avg_timing_error REAL,
-        mistakes TEXT
-    )
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    timestamp TEXT,
+    reference TEXT,
+    played_notes TEXT,
+    note_accuracy REAL,
+    avg_pitch_error REAL,
+    avg_timing_error REAL,
+    mistakes TEXT,
+    composite_score REAL,
+    pitch_index REAL,
+    rhythm_index REAL,
+    consistency_index REAL
+)
 """)
 
 
@@ -46,27 +50,35 @@ def save_session(user_id, reference, played, result):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO sessions (
-            user_id,
-            timestamp,
-            reference,
-            played_notes,
-            note_accuracy,
-            avg_pitch_error,
-            avg_timing_error,
-            mistakes
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
+    INSERT INTO sessions (
         user_id,
-        datetime.now().isoformat(),
-        json.dumps(reference),
-        json.dumps(played),
-        result["note_accuracy"],
-        result["avg_pitch_error_cents"],
-        result["avg_timing_error_sec"],
-        json.dumps(result["mistakes"])
-    ))
+        timestamp,
+        reference,
+        played_notes,
+        note_accuracy,
+        avg_pitch_error,
+        avg_timing_error,
+        mistakes,
+        composite_score,
+        pitch_index,
+        rhythm_index,
+        consistency_index
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    user_id,
+    datetime.now().isoformat(),
+    json.dumps(reference),
+    json.dumps(played),
+    result["note_accuracy"],
+    result["avg_pitch_error_cents"],
+    result["avg_timing_error_sec"],
+    json.dumps(result["mistakes"]),
+    result.get("composite_score"),
+    result.get("pitch_index"),
+    result.get("rhythm_index"),
+    result.get("consistency_index"),
+))
 
     conn.commit()
     conn.close()
@@ -98,13 +110,17 @@ def get_sessions(user_id: str , limit: int = 100):
     sessions = []
 
     for row in rows:
-        sessions.append({
-            "id": row["id"],
-            "timestamp": row["timestamp"],
-            "note_accuracy": row["note_accuracy"],
-            "avg_pitch_error": row["avg_pitch_error"],
-            "avg_timing_error": row["avg_timing_error"]
-        })
+       sessions.append({
+    "id": row["id"],
+    "timestamp": row["timestamp"],
+    "note_accuracy": row["note_accuracy"],
+    "avg_pitch_error": row["avg_pitch_error"],
+    "avg_timing_error": row["avg_timing_error"],
+    "composite_score": row["composite_score"],
+    "pitch_index": row["pitch_index"],
+    "rhythm_index": row["rhythm_index"],
+    "consistency_index": row["consistency_index"]
+})
 
     return sessions
 

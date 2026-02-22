@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Query
-from database.db import get_last_session, get_sessions
+from app.services.analytics_services import build_ml_forecast, build_skill_evolution,build_latest_radar
+from database.db import  get_sessions
 import statistics
 from app.services.dashboard_service import build_dashboard
 from app.future_plans.test_dashboard import analytics_dashboard
-
+from app.services.analytics_services import build_risk_profile
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
@@ -248,14 +249,33 @@ def test_dashboard(user_id: str):
 @router.get("/analytics/radar")
 def radar(user_id: str = Query(...)):
 
-    session = get_last_session(user_id)
+    try:
+        return build_latest_radar(user_id)
+    except Exception as e:
+        return {"message": "Error generating radar data", "error": str(e)}
 
-    if not session:
-        return {"error": "No sessions found"}
+@router.get("/skill-evolution")
+def skill_evolution(user_id: str):
+    data = build_skill_evolution(user_id)
+    if not data:
+        return {"message": "No data found"}
+    return data
 
-    return {
-        "pitch": session["pitch_index"],
-        "rhythm": session["rhythm_index"],
-        "consistency": session["consistency_index"],
-        "overall": session["composite_score"]
-    }
+@router.get("/risk")
+def risk(user_id: str):
+
+    try:
+        return build_risk_profile(user_id)
+    except Exception as e:
+        return {"message": "Error generating risk profile", "error": str(e)}
+    
+
+
+@router.get("/forecast")
+def forecast(user_id: str):
+
+    
+    try:
+        return build_ml_forecast(user_id)
+    except Exception as e:
+        return {"message": "Error generating forecast", "error": str(e)}
