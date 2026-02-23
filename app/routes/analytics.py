@@ -5,6 +5,8 @@ import statistics
 from app.services.dashboard_service import build_dashboard
 from app.future_plans.test_dashboard import analytics_dashboard
 from app.services.analytics_services import build_risk_profile
+from database.db import get_weakest_phrase
+
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
@@ -279,3 +281,18 @@ def forecast(user_id: str):
         return build_ml_forecast(user_id)
     except Exception as e:
         return {"message": "Error generating forecast", "error": str(e)}
+    
+
+
+
+
+
+@router.get("/song/weakest-phrase")
+def weakest_phrase(user_id: str, song_id: str):
+
+    data = get_weakest_phrase(user_id, song_id)
+
+    if not data:
+        return {"message": " Not Enough data to determine weakest phrase"}
+
+    return data    

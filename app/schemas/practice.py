@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from app.schemas.Pydantic_schemas import AdaptivePlan
+from app.schemas.Pydantic_schemas import AdaptivePlan,SongAdaptivePlanResponse
 
 
 
@@ -24,6 +24,8 @@ class PracticeResponse(BaseModel):
     dtw_cost: float
     evaluation: EvaluationResult
     adaptive_plan: AdaptivePlan
+    song_adaptive_plan: Optional[SongAdaptivePlanResponse] = None
+    full_song_unlocked: bool = False
     played_notes: List[PlayedNote]
 
 

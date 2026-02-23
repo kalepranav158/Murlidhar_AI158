@@ -1,0 +1,21 @@
+{
+  "id": "song_1",
+  "type": "song",
+  "title": "Simple Bhajan",
+  "base_tempo": 65,
+  "expression_weight": 0.3,
+  "flow_weight": 0.4,
+  "accuracy_weight": 0.3,
+  "phrases": [
+    {
+      "id": 0,
+      "difficulty": "easy",
+      "notes": ["Sa", "Re", "Ga", "Re", "Sa"]
+    },
+    {
+      "id": 1,
+      "difficulty": "medium",
+      "notes": ["Ga", "Ma", "Pa", "Ma", "Ga"]
+    }
+  ]
+}

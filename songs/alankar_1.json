@@ -1,10 +1,16 @@
 {
-  "song_id": "basic_alankar",
-  "title": "Basic Alankar",
-  "tempo": 60,
+  "id": "alankar_1",
+  "type": "alankar",
+  "title": "Basic Alankar 1",
+  "base_tempo": 60,
+  "tempo_levels": [60, 75, 90, 110],
+  "supports_variations": true,
+  "supports_reverse": true,
+  "supports_tempo_cycle": true,
+  "skill_focus": ["pitch", "rhythm", "breath"],
   "phrases": [
     {
-      "phrase_id": 0,
+      "id": 0,
       "notes": [
         {"note": "Madhya Sa", "time": 0.0},
         {"note": "Madhya Re", "time": 0.5},
@@ -14,9 +20,6 @@
         {"note": "Madhya Dha", "time": 2.5},
         {"note": "Madhya Ni", "time": 3.0}
       ]
-    
     }
   ]
-   
 }
-

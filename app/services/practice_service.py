@@ -12,7 +12,13 @@ from audio.note_segmenter import NoteSegmenter
 from dtw.aligner import dtw_align
 from evaluation.scorer import evaluate
 from music.song_loader import load_song
-from database.db import save_session
+from database.db import save_session,update_alankar_mastery
+from app.services.alankar_engine import compute_alankar_level
+from database.db import update_phrase_mastery
+from app.services.song_engine import generate_song_adaptive_plan
+from database.db import is_song_mastered
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +55,28 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
     # ----------------------------------
     # Load Song
     # ----------------------------------
+    
+    
     song_path = f"songs/{song_id}.json"
 
     if not os.path.exists(song_path):
         raise HTTPException(status_code=404, detail="Song not found")
 
     song = load_song(song_path)
+
+    # ----------------------------
+    # NEW: Extract Metadata
+    # ----------------------------
+    song_type = song.get("type", "alankar")
+    base_tempo = song.get("base_tempo", 60)
+
+    # Optional: For future use
+    tempo_levels = song.get("tempo_levels", [])
+    supports_variations = song.get("supports_variations", False)
+
+    # ----------------------------
+    # Continue Validation
+    # ----------------------------
 
     if phrase_index < 0 or phrase_index >= len(song["phrases"]):
         raise HTTPException(status_code=400, detail="Invalid phrase index")
@@ -178,9 +200,25 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
     result["composite_score"] = round(composite_score, 3)
 
     save_session(user_id=user_id, reference=reference, played=played, result=result)
-
-    logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
     
+    logger.info(f"Detected {len(played)} notes. DTW cost={cost}")
+   
+    
+
+
+
+
+    if song_type == "song":
+
+        update_phrase_mastery(
+            user_id=user_id,
+            song_id=song["id"],
+            phrase_id=phrase_index,
+            accuracy=result["note_accuracy"],
+            pitch_error=result["avg_pitch_error_cents"],
+            timing_error=result["avg_timing_error_sec"]
+        )
+
     adaptive_plan = generate_adaptive_plan(
     user_id=user_id,
     base_bpm=tempo,
@@ -189,7 +227,67 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
     tempo_deviation=result.get("tempo_deviation")
 )
 
+    if song_type == "song":
 
+        full_song_unlocked = is_song_mastered(
+            user_id=user_id,
+            song_id=song["id"],
+            total_phrases=len(song["phrases"])
+        )
+
+    else:
+        full_song_unlocked = None
+
+
+
+
+
+
+
+
+    if song_type == "song":
+
+        song_adaptive_plan = generate_song_adaptive_plan(
+            user_id=user_id,
+            song=song,
+            phrase_index=phrase_index,
+            accuracy=result["note_accuracy"],
+            base_tempo=base_tempo
+        )
+
+    else:
+        song_adaptive_plan = None
+
+
+
+
+
+    if song_type == "alankar":
+
+        composite_score = result.get("composite_score")
+        plateau_flag = adaptive_plan.get("plateau_intervention", False)
+
+        level_info = compute_alankar_level(
+            user_id=user_id,
+            song=song,
+            composite_score=composite_score,
+            plateau_flag=plateau_flag
+        )
+        
+    else:
+        level_info = None
+
+
+     
+    if song_type == "alankar" and level_info:
+
+        update_alankar_mastery(
+        user_id=user_id,
+        alankar_id=song["id"],
+        level_index=level_info["level_index"],
+        tempo=level_info["recommended_tempo"],
+        composite_score=result.get("composite_score", 0)
+    )    
 
     # generate feedback using LLM with fallback
     try:
@@ -199,10 +297,10 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
        ai_feedback = generate_normal_feedback(result)
     
   
-    print(f"Adaptive Plan: {adaptive_plan}")
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
+        "Alankar_level": level_info,
         "dtw_cost": float(cost),
         "evaluation": {
             "note_accuracy": result["note_accuracy"],
@@ -212,6 +310,8 @@ async def evaluate_audio(user_id,upload_file, song_id, phrase_index,tempo):
             "feedback":ai_feedback,
         },
         "adaptive_plan": adaptive_plan,
+        "song_adaptive_plan": song_adaptive_plan,
+        "full_song_unlocked": full_song_unlocked,
         "played_notes": [
             {
                 "note": n["note"],

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, UploadFile, File
 from app.services.practice_service import evaluate_audio
 from app.schemas.practice import PracticeResponse
-from app.services.adaptive_engine import generate_adaptive_plan
 
 router = APIRouter(prefix="/practice", tags=["Practice"])
+
 
 @router.post("/{user_id}/{song_id}/{phrase_index}", response_model=PracticeResponse)
 async def practice(

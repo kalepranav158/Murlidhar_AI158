@@ -178,3 +178,21 @@ class AdaptivePlan(BaseModel):
     real_bpm: Optional[float] = None
     reference_bpm: Optional[int] = None
     tempo_deviation: Optional[float] = None
+
+
+
+
+class SongAdaptivePlanResponse(BaseModel):
+    """Schema matching `generate_song_adaptive_plan` return value.
+
+    Fields:
+    - adaptive_enabled: whether adaptive mode is on
+    - recommended_tempo: BPM recommended for practice
+    - focus_phrase: index/id of the phrase to focus
+    - song_recommendation: short textual recommendation
+    """
+
+    adaptive_enabled: bool = Field(..., description="Adaptive mode enabled")
+    recommended_tempo: int = Field(..., ge=20, le=300, description="Recommended tempo (BPM)")
+    focus_phrase: int = Field(..., ge=0, description="Phrase index to focus on")
+    song_recommendation: str = Field(..., description="Short practice recommendation")
