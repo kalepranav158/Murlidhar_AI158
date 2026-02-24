@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 
 
-app = FastAPI(title="Murlidhar AI - Flute Tutor API")
+app = FastAPI(title="Something New")
 
 
 # always initialize database on startup

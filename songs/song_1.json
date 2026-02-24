@@ -10,12 +10,24 @@
     {
       "id": 0,
       "difficulty": "easy",
-      "notes": ["Sa", "Re", "Ga", "Re", "Sa"]
+      "notes": [
+        {"note": "Madhya Sa", "time": 0.0},
+        {"note": "Madhya Re", "time": 0.5},
+        {"note": "Madhya Ga", "time": 1.0},
+        {"note": "Madhya Re", "time": 1.5},
+        {"note": "Madhya Sa", "time": 2.0}
+      ]
     },
     {
       "id": 1,
       "difficulty": "medium",
-      "notes": ["Ga", "Ma", "Pa", "Ma", "Ga"]
+      "notes": [
+        {"note": "Madhya Ga", "time": 0.0},
+        {"note": "Madhya Ma", "time": 0.5},
+        {"note": "Madhya Pa", "time": 1.0},
+        {"note": "Madhya Ma", "time": 1.5},
+        {"note": "Madhya Ga", "time": 2.0}
+      ]
     }
   ]
 }
