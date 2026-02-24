@@ -24,6 +24,10 @@ class PracticeResponse(BaseModel):
     dtw_cost: float
     evaluation: EvaluationResult
     adaptive_plan: AdaptivePlan
+    techniques: Optional[dict] = None
+    technique_score: Optional[float] = None
+    technique_details: Optional[dict] = None
+    alankar_level: Optional[dict] = None
     song_adaptive_plan: Optional[SongAdaptivePlanResponse] = None
     full_song_unlocked: bool = False
     played_notes: List[PlayedNote]

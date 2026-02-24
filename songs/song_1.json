@@ -1,32 +1,72 @@
 {
-  "id": "song_1",
-  "type": "song",
-  "title": "Simple Bhajan",
-  "base_tempo": 65,
-  "expression_weight": 0.3,
-  "flow_weight": 0.4,
-  "accuracy_weight": 0.3,
+  "id": "sargam_test_2",
+  "type": "exercise",
+  "title": "Aaroh With Meend and Gamak",
+  "base_tempo": 60,
   "phrases": [
     {
       "id": 0,
-      "difficulty": "easy",
-      "notes": [
-        {"note": "Madhya Sa", "time": 0.0},
-        {"note": "Madhya Re", "time": 0.5},
-        {"note": "Madhya Ga", "time": 1.0},
-        {"note": "Madhya Re", "time": 1.5},
-        {"note": "Madhya Sa", "time": 2.0}
-      ]
-    },
-    {
-      "id": 1,
       "difficulty": "medium",
       "notes": [
-        {"note": "Madhya Ga", "time": 0.0},
-        {"note": "Madhya Ma", "time": 0.5},
-        {"note": "Madhya Pa", "time": 1.0},
-        {"note": "Madhya Ma", "time": 1.5},
-        {"note": "Madhya Ga", "time": 2.0}
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Re", "time": 0.5 },
+        { "note": "Madhya Ga", "time": 1.0 },
+        { "note": "Madhya Ma", "time": 1.5 },
+        { "note": "Madhya Pa", "time": 2.0 },
+        { "note": "Madhya Dha", "time": 2.5 },
+        { "note": "Madhya Ni", "time": 3.0 },
+        { "note": "Taar Sa", "time": 3.5 }
+      ],
+      "transitions": [
+        {
+          "from": "Madhya Sa",
+          "to": "Madhya Re",
+          "from_time": 0.0,
+          "to_time": 0.5,
+          "technique": null
+        },
+        {
+          "from": "Madhya Re",
+          "to": "Madhya Ga",
+          "from_time": 0.5,
+          "to_time": 1.0,
+          "technique": "meend"
+        },
+        {
+          "from": "Madhya Ga",
+          "to": "Madhya Ma",
+          "from_time": 1.0,
+          "to_time": 1.5,
+          "technique": "gamak"
+        },
+        {
+          "from": "Madhya Ma",
+          "to": "Madhya Pa",
+          "from_time": 1.5,
+          "to_time": 2.0,
+          "technique": null
+        },
+        {
+          "from": "Madhya Pa",
+          "to": "Madhya Dha",
+          "from_time": 2.0,
+          "to_time": 2.5,
+          "technique": "meend"
+        },
+        {
+          "from": "Madhya Dha",
+          "to": "Madhya Ni",
+          "from_time": 2.5,
+          "to_time": 3.0,
+          "technique": "gamak"
+        },
+        {
+          "from": "Madhya Ni",
+          "to": "Taar Sa",
+          "from_time": 3.0,
+          "to_time": 3.5,
+          "technique": null
+        }
       ]
     }
   ]

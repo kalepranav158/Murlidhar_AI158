@@ -9,6 +9,7 @@ from database.db import save_session, update_alankar_mastery, update_phrase_mast
 from app.services.alankar_engine import compute_alankar_level
 from app.services.song_engine import generate_song_adaptive_plan
 from app.services.practice_endpoint.audio_core import process_audio_core
+from audio.techniques import compare_with_reference
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ async def evaluate_alankar(
         raise HTTPException(status_code=500, detail="Reference phrase empty")
 
     # Process audio core (no adaptive logic here)
-    cost, result, played = await process_audio_core(upload_file, reference)
+    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, reference)
 
     # Compute real BPM from played notes
     real_bpm = None
@@ -79,9 +80,9 @@ async def evaluate_alankar(
     if real_bpm is not None:
         tempo_deviation = real_bpm - reference_bpm
 
-    result["real_bpm"] = float(real_bpm) if real_bpm else None
+    result["real_bpm"] = float(real_bpm) if real_bpm is not None else None
     result["tempo_variance"] = tempo_variance
-    result["tempo_deviation"] = float(tempo_deviation) if tempo_deviation else None
+    result["tempo_deviation"] = float(tempo_deviation) if tempo_deviation is not None else None
     result["reference_bpm"] = reference_bpm
 
     # Compute session indices
@@ -89,16 +90,39 @@ async def evaluate_alankar(
     rhythm_index = max(0, 1 - (result["avg_timing_error_sec"] / 1))
     consistency_index = 1  # single session
 
+    # Gate technique detection on accuracy (skip if performance too poor)
+    if result["note_accuracy"] < 40 or result["avg_pitch_error_cents"] > 25:
+        techniques = {"meend": [], "gamak": []}
+
+    # Technique comparison with reference (phrase-level expectation)
+    try:
+        technique_cmp = compare_with_reference(techniques, phrase, played, alignment_indices)
+        technique_score = float(technique_cmp.get("technique_score", 0.0))
+    except Exception:
+        logger.exception("Technique comparison failed")
+        technique_cmp = {"technique_score": 0.0, "details": {}}
+        technique_score = 0.0
+
     composite_score = (
         0.4 * (result["note_accuracy"] / 100) +
         0.3 * pitch_index +
         0.3 * rhythm_index
     )
 
+    # Incorporate technique score: reward correct (+0.1 max), penalize missing required (-0.05)
+    # If reference expects techniques but we found none -> reduce score
+    has_expected_techniques = bool(phrase.get("transitions", []) and any(t.get("technique") for t in phrase.get("transitions", [])))
+    if has_expected_techniques and technique_score == 0.0:
+        composite_score = max(0.0, composite_score - 0.05)
+    else:
+        composite_score = composite_score + 0.1 * technique_score
+
     result["pitch_index"] = round(pitch_index, 3)
     result["rhythm_index"] = round(rhythm_index, 3)
     result["consistency_index"] = round(consistency_index, 3)
     result["composite_score"] = round(composite_score, 3)
+    result["technique_score"] = round(technique_score, 3)
+    result["technique_details"] = technique_cmp.get("details", {})
 
     # Save session
     save_session(user_id=user_id, reference=reference, played=played, result=result)
@@ -149,6 +173,9 @@ async def evaluate_alankar(
             "mistakes": result["mistakes"],
             "feedback": ai_feedback,
         },
+        "techniques": techniques,
+        "technique_score": result.get("technique_score", 0.0),
+        "technique_details": result.get("technique_details", {}),
         "adaptive_plan": adaptive_plan,
         "played_notes": [
             {
@@ -208,7 +235,7 @@ async def evaluate_song(
         raise HTTPException(status_code=500, detail="Reference phrase empty")
 
     # Process audio core (no adaptive logic here)
-    cost, result, played = await process_audio_core(upload_file, reference)
+    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, reference)
 
     # Compute real BPM from played notes
     real_bpm = None
@@ -228,9 +255,9 @@ async def evaluate_song(
     if real_bpm is not None:
         tempo_deviation = real_bpm - reference_bpm
 
-    result["real_bpm"] = float(real_bpm) if real_bpm else None
+    result["real_bpm"] = float(real_bpm) if real_bpm is not None else None
     result["tempo_variance"] = tempo_variance
-    result["tempo_deviation"] = float(tempo_deviation) if tempo_deviation else None
+    result["tempo_deviation"] = float(tempo_deviation) if tempo_deviation is not None else None
     result["reference_bpm"] = reference_bpm
 
     # Compute session indices
@@ -238,16 +265,39 @@ async def evaluate_song(
     rhythm_index = max(0, 1 - (result["avg_timing_error_sec"] / 1))
     consistency_index = 1  # single session
 
+    # Gate technique detection on accuracy (skip if performance too poor)
+    if result["note_accuracy"] < 40 or result["avg_pitch_error_cents"] > 25:
+        techniques = {"meend": [], "gamak": []}
+
+    # Technique comparison with reference (phrase-level expectation)
+    try:
+        technique_cmp = compare_with_reference(techniques, phrase, played, alignment_indices)
+        technique_score = float(technique_cmp.get("technique_score", 0.0))
+    except Exception:
+        logger.exception("Technique comparison failed")
+        technique_cmp = {"technique_score": 0.0, "details": {}}
+        technique_score = 0.0
+
     composite_score = (
         0.4 * (result["note_accuracy"] / 100) +
         0.3 * pitch_index +
         0.3 * rhythm_index
     )
 
+    # Incorporate technique score: reward correct (+0.1 max), penalize missing required (-0.05)
+    # If reference expects techniques but we found none -> reduce score
+    has_expected_techniques = bool(phrase.get("transitions", []) and any(t.get("technique") for t in phrase.get("transitions", [])))
+    if has_expected_techniques and technique_score == 0.0:
+        composite_score = max(0.0, composite_score - 0.05)
+    else:
+        composite_score = composite_score + 0.1 * technique_score
+
     result["pitch_index"] = round(pitch_index, 3)
     result["rhythm_index"] = round(rhythm_index, 3)
     result["consistency_index"] = round(consistency_index, 3)
     result["composite_score"] = round(composite_score, 3)
+    result["technique_score"] = round(technique_score, 3)
+    result["technique_details"] = technique_cmp.get("details", {})
 
     # Save session
     save_session(user_id=user_id, reference=reference, played=played, result=result)
@@ -305,6 +355,9 @@ async def evaluate_song(
             "mistakes": result["mistakes"],
             "feedback": ai_feedback,
         },
+        "techniques": techniques,
+        "technique_score": result.get("technique_score", 0.0),
+        "technique_details": result.get("technique_details", {}),
         "adaptive_plan": adaptive_plan,
         "song_adaptive_plan": song_adaptive_plan,
         "full_song_unlocked": full_song_unlocked,
@@ -351,13 +404,15 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     if not is_song_mastered(user_id, song["id"], len(song["phrases"])):
         raise HTTPException(403, "Master all phrases before full performance.")
 
-    full_reference = build_full_song_reference(song)
-
-
-    cost, result, played = await process_audio_core(upload_file, full_reference)
     full_reference, boundaries = build_full_song_reference(song)
-    transition_score = compute_transition_score(played, boundaries)
+
+    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, full_reference)
+    transition_score = compute_transition_score(played, boundaries, tempo=tempo)
     flow_score = compute_flow_consistency(played)
+
+    # No phrase-level reference for full song; aggregate technique scoring not implemented yet
+    technique_cmp = compare_with_reference(techniques, None, played, alignment_indices)
+    technique_score = float(technique_cmp.get("technique_score", 0.0))
 
     save_session(user_id=user_id, reference=full_reference, played=played, result=result)
 
@@ -368,6 +423,8 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
         "dtw_cost": float(cost),
         "transition_score": transition_score,
         "flow_score": flow_score,
+        "techniques": techniques,
+        "technique_score": technique_score,
         "evaluation": {
             "note_accuracy": result["note_accuracy"],
             "avg_pitch_error_cents": result["avg_pitch_error_cents"],
@@ -378,8 +435,14 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     }
 
 
-def compute_transition_score(played_notes, boundaries):
-
+def compute_transition_score(played_notes, boundaries, tempo=60):
+    """Compute smooth transitions between phrases, tempo-aware.
+    
+    Expected gap between phrases is tempo-dependent:
+    - Ideal gap ~= 1-2 quarter note durations
+    - At 60 BPM, quarter note = 1 sec, so ideal gap ~= 1-2 sec
+    - At 120 BPM, quarter note = 0.5 sec, so ideal gap ~= 0.5-1 sec
+    """
     if len(boundaries) <= 1:
         return 1.0
 
@@ -397,8 +460,10 @@ def compute_transition_score(played_notes, boundaries):
 
     avg_gap = sum(gaps) / len(gaps)
 
-    # Normalize (ideal gap < 0.2 sec)
-    score = max(0, 1 - (avg_gap / 1.0))
+    # Tempo-aware normalization: ideal gap = 2 * (60 / tempo) seconds
+    # At 60 BPM: ideal ~= 2 sec; at 120 BPM: ideal ~= 1 sec
+    ideal_gap = 2.0 * (60.0 / max(30, tempo))  # clamp tempo to avoid division issues
+    score = max(0, 1 - (avg_gap / (2 * ideal_gap)))
     return round(score, 3)
 
 
@@ -407,7 +472,11 @@ def compute_transition_score(played_notes, boundaries):
 
 
 def compute_flow_consistency(played_notes):
-
+    """Compute rhythm consistency (how steady the tempo is).
+    
+    Normalized variance: compare actual variance to expected variance for random timing.
+    Lower normalized variance = better consistency.
+    """
     if len(played_notes) < 3:
         return 1.0
 
@@ -418,8 +487,17 @@ def compute_flow_consistency(played_notes):
             played_notes[i]["time"] - played_notes[i - 1]["time"]
         )
 
-    mean_interval = sum(intervals) / len(intervals)
-    variance = sum((x - mean_interval) ** 2 for x in intervals) / len(intervals)
+    if not intervals:
+        return 1.0
 
-    score = max(0, 1 - variance)
+    mean_interval = sum(intervals) / len(intervals)
+    if mean_interval <= 0:
+        return 1.0
+
+    variance = sum((x - mean_interval) ** 2 for x in intervals) / len(intervals)
+    
+    # Normalize variance by mean_interval^2 to make it dimensionless [0, inf)
+    # Then clamp to [0, 1] range for score
+    normalized_variance = variance / (mean_interval ** 2) if mean_interval > 0 else 0
+    score = max(0, 1 - normalized_variance)
     return round(score, 3)    
