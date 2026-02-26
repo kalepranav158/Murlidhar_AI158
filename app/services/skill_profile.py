@@ -67,6 +67,8 @@ def build_skill_profile(user_id: str) -> Dict:
     accuracies = [s["note_accuracy"] for s in sessions]
     pitch_errors = [s["avg_pitch_error"] for s in sessions]
     timing_errors = [s["avg_timing_error"] for s in sessions]
+    # ensure we never feed None to statistics.mean
+    technique_scores = [ (s.get("technique_score") or 0.0) for s in sessions]
 
     # -------------------------------
     # Core Metrics
@@ -118,12 +120,16 @@ def build_skill_profile(user_id: str) -> Dict:
         3
     )
 
+    # average technique proficiency across past sessions (0-1 scale)
+    avg_technique = round(_safe_mean(technique_scores), 3)
+
     return {
         "pitch_stability_index": pitch_stability_index,
         "rhythm_stability_index": rhythm_stability_index,
         "accuracy_index": accuracy_index,
         "breath_control_index": breath_control_index,
         "consistency_index": consistency_index,
+        "technique_score": avg_technique,
         "growth_rate": growth_rate,
         "plateau_flag": plateau_flag,
         "risk_flag": risk_flag,

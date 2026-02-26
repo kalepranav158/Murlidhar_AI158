@@ -18,6 +18,17 @@ class EvaluationResult(BaseModel):   # -> this is used in PracticeResponse just 
     feedback: Optional[str | dict]
     
 
+class CurriculumResponse(BaseModel):
+    current_level: str
+    unlocked_content: List[str]
+    mastered_content: List[str]
+    skill_snapshot: dict
+    recommended_content: Optional[str] = None
+    reason: Optional[str] = None
+    locked: Optional[List[str]]=None
+    next_goal: Optional[str] = None
+
+
 class PracticeResponse(BaseModel):
     song: str
     phrase_index: int
@@ -31,6 +42,7 @@ class PracticeResponse(BaseModel):
     song_adaptive_plan: Optional[SongAdaptivePlanResponse] = None
     full_song_unlocked: bool = False
     played_notes: List[PlayedNote]
+    curriculum: Optional[CurriculumResponse] = None
 
 
 

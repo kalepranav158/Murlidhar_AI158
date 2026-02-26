@@ -11,7 +11,6 @@ def init_db():
 
 
 
-        # Analytics Snapshots Table
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS analytics_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +24,6 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
     trend_label TEXT
 )
 """)
-        # Practice Sessions Table
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,14 +38,18 @@ CREATE TABLE IF NOT EXISTS sessions (
     composite_score REAL,
     pitch_index REAL,
     rhythm_index REAL,
-    consistency_index REAL
+    consistency_index REAL,
+    technique_score REAL
 )
 """)
+    # ensure table upgrade: add new column if missing from older databases
+    cursor.execute("PRAGMA table_info(sessions)")
+    cols = [r[1] for r in cursor.fetchall()]
+    if "technique_score" not in cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN technique_score REAL")
 
 
 
-
- # Alankar Mastery Table
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS alankar_mastery (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +64,6 @@ CREATE TABLE IF NOT EXISTS alankar_mastery (
 """)
     
 
-    # songs Phrase Mastery Table 
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS phrase_mastery (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +75,16 @@ CREATE TABLE IF NOT EXISTS phrase_mastery (
     avg_timing_error REAL,
     total_attempts INTEGER,
     mastered INTEGER
+)
+""")
+
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS student_progress (
+    user_id TEXT PRIMARY KEY,
+    current_level TEXT,
+    unlocked_content TEXT,
+    mastered_content TEXT,
+    last_evaluated TEXT
 )
 """)
 
@@ -98,9 +109,10 @@ def save_session(user_id, reference, played, result):
         composite_score,
         pitch_index,
         rhythm_index,
-        consistency_index
+        consistency_index,
+        technique_score
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, (
     user_id,
     datetime.now().isoformat(),
@@ -114,6 +126,7 @@ def save_session(user_id, reference, played, result):
     result.get("pitch_index"),
     result.get("rhythm_index"),
     result.get("consistency_index"),
+    result.get("technique_score"),
 ))
 
     conn.commit()
@@ -136,9 +149,6 @@ def get_sessions(user_id: str , limit: int = 100):
             "SELECT * FROM sessions ORDER BY id DESC LIMIT ?",
             (limit,)
         )
-        "SELECT * FROM sessions ORDER BY id DESC LIMIT ?",
-        (limit,)
-    
 
     rows = cursor.fetchall()
     conn.close()
@@ -155,7 +165,8 @@ def get_sessions(user_id: str , limit: int = 100):
     "composite_score": row["composite_score"],
     "pitch_index": row["pitch_index"],
     "rhythm_index": row["rhythm_index"],
-    "consistency_index": row["consistency_index"]
+    "consistency_index": row["consistency_index"],
+    "technique_score": row.get("technique_score") if isinstance(row, dict) else row["technique_score"]
 })
 
     return sessions
@@ -178,6 +189,115 @@ def get_last_session(user_id: str):
     conn.close()
 
     return dict(row) if row else None
+
+
+# ---------------------------
+# Student progress / curriculum helpers
+# ---------------------------
+
+def get_student_progress(user_id: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM student_progress WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "user_id": row["user_id"],
+        "current_level": row["current_level"],
+        "unlocked_content": json.loads(row["unlocked_content"] or "[]"),
+        "mastered_content": json.loads(row["mastered_content"] or "[]"),
+        "last_evaluated": row["last_evaluated"]
+    }
+
+
+def update_student_progress(user_id: str, profile: dict):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    unlocked_json = json.dumps(profile.get("unlocked_content", []))
+    mastered_json = json.dumps(profile.get("mastered_content", []))
+    level = profile.get("current_level")
+    last = profile.get("last_evaluated")
+
+    cursor.execute(
+        "SELECT user_id FROM student_progress WHERE user_id = ?",
+        (user_id,)
+    )
+    if cursor.fetchone():
+        cursor.execute(
+            """
+            UPDATE student_progress
+            SET current_level=?, unlocked_content=?, mastered_content=?, last_evaluated=?
+            WHERE user_id=?
+            """,
+            (level, unlocked_json, mastered_json, last, user_id)
+        )
+    else:
+        cursor.execute(
+            """
+            INSERT INTO student_progress (
+                user_id, current_level, unlocked_content, mastered_content, last_evaluated
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, level, unlocked_json, mastered_json, last)
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def is_alankar_mastered(user_id: str, alankar_id: str) -> bool:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT mastered FROM alankar_mastery WHERE user_id=? AND alankar_id=?",
+        (user_id, alankar_id)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return bool(row[0])
+    return False
+
+
+def count_mastered_alankars(user_id: str) -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM alankar_mastery WHERE user_id=? AND mastered=1",
+        (user_id,)
+    )
+    cnt = cursor.fetchone()[0]
+    conn.close()
+    return cnt
+
+
+def count_mastered_songs(user_id: str) -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT song_id, COUNT(*) as mastered_phrases FROM phrase_mastery WHERE user_id=? AND mastered=1 GROUP BY song_id",
+        (user_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    from music.song_loader import load_song
+    total = 0
+    for song_id, mastered_phrases in rows:
+        try:
+            song = load_song(f"songs/{song_id}.json")
+            if len(song.get("phrases", [])) == mastered_phrases:
+                total += 1
+        except Exception:
+            continue
+    return total
 
 def save_analytics_snapshot(user_id: str, snapshot: dict):
     """

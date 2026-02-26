@@ -10,6 +10,9 @@ from app.services.alankar_engine import compute_alankar_level
 from app.services.song_engine import generate_song_adaptive_plan
 from app.services.practice_endpoint.audio_core import process_audio_core
 from audio.techniques import compare_with_reference
+from app.services.curriculum_service import evaluate_curriculum_progress
+from app.services.llm.feedback_llm import _normalize_llm_feedback
+
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +160,19 @@ async def evaluate_alankar(
     # Generate feedback
     try:
         ai_feedback = generate_guru_feedback(result, adaptive_plan)
+        # convert LLM-provided percentages to 0-1 scale for consistency
+        ai_feedback = _normalize_llm_feedback(ai_feedback)
     except Exception:
         logger.exception("LLM feedback failed, using fallback")
         ai_feedback = generate_normal_feedback(result)
+
+    # curriculum evaluation
+    from app.services.curriculum_service import evaluate_curriculum_progress
+    curriculum_info = evaluate_curriculum_progress(user_id)
+    # defensive cleanup: ensure lists contain only strings
+    for list_key in ["unlocked_content", "mastered_content", "locked"]:
+        if list_key in curriculum_info:
+            curriculum_info[list_key] = [x for x in curriculum_info[list_key] if isinstance(x, str)]
 
     return {
         "song": song["title"],
@@ -184,7 +197,8 @@ async def evaluate_alankar(
                 "time": float(n["time"])
             }
             for n in played
-        ]
+        ],
+        "curriculum": curriculum_info
     }
 
 
@@ -340,9 +354,17 @@ async def evaluate_song(
     # Generate feedback
     try:
         ai_feedback = generate_guru_feedback(result, adaptive_plan)
+        ai_feedback = _normalize_llm_feedback(ai_feedback)
     except Exception:
         logger.exception("LLM feedback failed, using fallback")
         ai_feedback = generate_normal_feedback(result)
+
+    # curriculum evaluation
+    curriculum_info = evaluate_curriculum_progress(user_id)
+    # defensive cleanup: ensure lists contain only strings
+    for list_key in ["unlocked_content", "mastered_content", "locked"]:
+        if list_key in curriculum_info:
+            curriculum_info[list_key] = [x for x in curriculum_info[list_key] if isinstance(x, str)]
 
     return {
         "song": song["title"],
@@ -368,7 +390,8 @@ async def evaluate_song(
                 "time": float(n["time"])
             }
             for n in played
-        ]
+        ],
+        "curriculum": curriculum_info
     }
 
 
@@ -411,8 +434,12 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     flow_score = compute_flow_consistency(played)
 
     # No phrase-level reference for full song; aggregate technique scoring not implemented yet
-    technique_cmp = compare_with_reference(techniques, None, played, alignment_indices)
+    # no phrase-level reference available for full song
+    technique_cmp = compare_with_reference(techniques, {}, played, alignment_indices)
     technique_score = float(technique_cmp.get("technique_score", 0.0))
+
+    # ensure session result carries technique score for downstream analytics
+    result["technique_score"] = round(technique_score, 3)
 
     save_session(user_id=user_id, reference=full_reference, played=played, result=result)
 

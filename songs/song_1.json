@@ -1,7 +1,13 @@
 {
-  "id": "sargam_test_2",
-  "type": "exercise",
+  "id": "song_1",
+  "type": "song",
+  "level": "intermediate",
   "title": "Aaroh With Meend and Gamak",
+  "required_accuracy": 85,
+  "required_rhythm_index": 0.7,
+  "required_technique_score": 0.6,
+  "required_composite_score": 0.7,
+  "unlock_next": null,
   "base_tempo": 60,
   "phrases": [
     {

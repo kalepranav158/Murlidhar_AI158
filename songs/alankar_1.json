@@ -1,7 +1,12 @@
 {
   "id": "alankar_1",
   "type": "alankar",
+  "level": "beginner",
   "title": "Basic Alankar 1",
+  "required_accuracy": 80,
+  "required_rhythm_index": 0.6,
+  "required_technique_score": 0.0,
+  "unlock_next": "alankar_2",
   "base_tempo": 60,
   "tempo_levels": [60, 75, 90, 110],
   "supports_variations": true,

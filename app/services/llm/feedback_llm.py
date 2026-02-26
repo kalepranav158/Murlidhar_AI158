@@ -7,6 +7,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _normalize_llm_feedback(feedback: dict) -> dict:
+    """Convert 0-100 scores from guru feedback into 0-1 indices.
+
+    The LLM returns pitch/rhythm stability on a 0-100 scale which
+    is inconsistent with the rest of the analytics pipeline.  Normalization
+    happens near the service layer now, so make the helper available here.
+    """
+    for k in ["pitch_stability_score", "rhythm_stability_score"]:
+        if k in feedback and isinstance(feedback[k], (int, float)):
+            try:
+                feedback[k] = round(feedback[k] / 100.0, 3)
+            except Exception:
+                pass
+    return feedback
+
+
 def generate_guru_feedback(result: dict, adaptive_plan: dict):
     """
     Generate guru feedback using LLM.
@@ -24,8 +40,8 @@ You MUST respond ONLY in valid JSON. No markdown, no extra text, just raw JSON.
   "overall_accuracy": <float>,
   "average_pitch_error_cents": <float>,
   "average_timing_error_seconds": <float>,
-  "pitch_stability_score": <float 0-100>,
-  "rhythm_stability_score": <float 0-100>,
+  "pitch_stability_score": <float 0-100>,  # will be normalized to 0-1 by service
+  "rhythm_stability_score": <float 0-100>,  # will be normalized to 0-1 by service
   "technical_assessment": "<string>",
   "root_cause_analysis": "<string>",
   "corrective_guidance": "<string>",

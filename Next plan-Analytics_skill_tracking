@@ -1,0 +1,236 @@
+🏗 1️⃣ CURRICULUM STRUCTURE MODEL
+
+We divide learning into:
+
+Level 1 – Beginner
+
+Basic Alankars
+
+No strict technique enforcement
+
+Focus: note accuracy + rhythm
+
+Level 2 – Intermediate
+
+Advanced Alankars
+
+Basic Songs
+
+Meend required
+
+Rhythm threshold stricter
+
+Level 3 – Advanced
+
+Full Songs
+
+Gamak required
+
+Expressive precision enforced
+
+🗂 2️⃣ CONTENT STRUCTURE DESIGN
+
+Each Alankar / Song JSON should include:
+
+{
+  "id": "alankar_3",
+  "level": "beginner",
+  "type": "alankar",
+  "required_accuracy": 80,
+  "required_rhythm_index": 0.6,
+  "required_technique_score": 0.0,
+  "unlock_next": "alankar_4"
+}
+
+For songs:
+
+{
+  "id": "song_1",
+  "level": "intermediate",
+  "required_accuracy": 85,
+  "required_rhythm_index": 0.7,
+  "required_technique_score": 0.6,
+  "required_composite_score": 0.7
+}
+
+Curriculum becomes metadata-driven.
+
+🧠 3️⃣ STUDENT PROFILE MODEL
+
+Create persistent student state:
+
+{
+  "current_level": "beginner",
+  "unlocked_content": ["alankar_1", "alankar_2"],
+  "mastered_content": ["alankar_1"],
+  "skill_snapshot": {
+    "accuracy": 0.82,
+    "rhythm_index": 0.68,
+    "technique_score": 0.55,
+    "composite_score": 0.73
+  }
+}
+
+Store this in DB.
+
+⚙️ 4️⃣ CURRICULUM DECISION ENGINE
+
+Create function:
+
+def evaluate_curriculum_progress(user_id):
+
+It will:
+
+Fetch analytics
+
+Fetch student profile
+
+Check mastery conditions
+
+Unlock next content if thresholds met
+
+Upgrade level if needed
+
+📊 5️⃣ MASTERY RULES
+
+Define mastery as:
+
+Accuracy ≥ required_accuracy
+Rhythm index ≥ required_rhythm
+Technique score ≥ required_technique
+Composite ≥ required_composite
+AND
+Consistency stable (low volatility)
+
+Also require:
+
+Minimum 3 successful sessions above threshold.
+
+This prevents accidental unlock.
+
+🧠 6️⃣ LEVEL PROGRESSION RULE
+
+Beginner → Intermediate when:
+
+Composite score ≥ 0.75
+
+Rhythm index ≥ 0.7
+
+Technique score ≥ 0.6
+
+At least 5 alankars mastered
+
+Intermediate → Advanced when:
+
+Composite ≥ 0.85
+
+Technique score ≥ 0.75
+
+At least 1 song mastered
+
+🎯 7️⃣ PRACTICE RECOMMENDATION LOGIC
+
+Curriculum engine outputs:
+
+{
+  "recommended_content": "alankar_4",
+  "reason": "Previous alankar mastered",
+  "locked": ["song_2"],
+  "next_goal": "Improve rhythm stability to unlock Level 2"
+}
+
+Adaptive engine then modifies tempo inside that.
+
+🔥 8️⃣ PHRASE-LEVEL REQUIREMENT FOR SONGS
+
+For song mastery:
+
+Require:
+
+All phrases ≥ 80% technique_score
+
+Overall timing error < threshold
+
+No plateau state
+
+Only then unlock full-song advanced mode.
+
+🧩 9️⃣ TECHNIQUE-SPECIFIC TRACK
+
+We also add:
+
+Technique ladder:
+
+Level 1: Meend optional
+Level 2: Meend required
+Level 3: Gamak required
+Level 4: Expressive variation required
+
+Curriculum engine checks:
+
+Technique trend slope positive.
+
+🧱 10️⃣ DATABASE ADDITIONS
+
+Add table:
+
+student_progress
+----------------
+user_id
+current_level
+unlocked_content (json)
+mastered_content (json)
+last_evaluated
+
+Optional:
+
+content_mastery
+---------------
+user_id
+content_id
+sessions_passed
+mastered_flag
+🧠 11️⃣ FINAL CURRICULUM FLOW
+
+Student practices →
+Evaluation →
+Analytics →
+Curriculum Decision →
+Unlock / Lock / Recommend →
+Adaptive engine adjusts tempo →
+Practice continues
+
+Closed feedback loop.
+
+📊 SYSTEM AFTER CURRICULUM IMPLEMENTATION
+
+It becomes:
+
+Not just adaptive.
+
+Not just expressive-aware.
+
+But structured learning engine.
+
+🏁 FINAL SYSTEM CLASSIFICATION
+
+Without curriculum:
+AI evaluator.
+
+With curriculum:
+AI music training platform.
+
+🚀 IMPLEMENTATION ORDER
+
+Step 1: Add content metadata
+Step 2: Create student_progress table
+Step 3: Build evaluate_curriculum_progress()
+Step 4: Inject into practice endpoint
+Step 5: Add curriculum response block to API
+
+🎯 Your Current System Readiness
+
+You are 100% ready to implement this.
+All required analytics and technique metrics already exist.
+
+No architectural rewrite needed.
