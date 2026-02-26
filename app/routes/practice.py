@@ -1,6 +1,8 @@
 from fastapi import APIRouter, UploadFile, File
 from app.services.practice_service import evaluate_alankar, evaluate_song, evaluate_song_full
 from app.schemas.practice import PracticeResponse
+import sys
+
 
 router = APIRouter(prefix="/practice", tags=["Practice"])
 
@@ -40,6 +42,10 @@ async def practice_song(
     tempo: int = 60,
     file: UploadFile = File(...),
 ):
+    
+    print("FASTAPI PYTHON:", sys.executable)
+
+    
     """
     Song practice endpoint.
     Handles pitch detection, DTW alignment, phrase mastery tracking, and song unlock logic.
@@ -60,7 +66,6 @@ async def practice_song_full(user_id: str, song_id: str, file: UploadFile):
 
 
 def compute_adaptive_tempo(base_bpm, composite_score, rhythm_index):
-    
     if composite_score > 0.85:
         return base_bpm + 10
     elif rhythm_index < 0.6:

@@ -16,3 +16,5 @@ def detect_pitch(samples: np.ndarray):
     freq = pitch_o(samples)[0]
     confidence = pitch_o.get_confidence()
     return freq, confidence
+
+

@@ -40,7 +40,7 @@ app.include_router(ask.router)
 
 @app.get("/")
 def root():
-    return {"message": "Flute Tutor API Running"}
+    return {"message":  "Runnnig well"}
 
 
 

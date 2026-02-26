@@ -150,7 +150,7 @@ def compute_note_interval_cents(from_note: str, to_note: str) -> float:
     return intervals.get((from_norm, to_norm), 200.0)  # Default: 200 cents
 
 
-def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, details: Dict[str, Any], played_notes: List[Dict[str, Any]] = None, alignment_indices: List[tuple] = None) -> Dict[str, Any]:
+def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, details: Dict[str, Any], played_notes: List[Dict[str, Any]] = None, alignment_indices: List[tuple] = None, aligned_windows: List[Dict[str, Any]] = None, reference_notes: List[Dict[str, Any]] = None, ref_note_name_to_index: Dict[str, int] = None) -> Dict[str, Any]:
     """
     Score techniques with 4-dimensional expressive model:
     
@@ -170,9 +170,79 @@ def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, d
 
     details["expected_transitions"] = expected_techniques
     
-    use_alignment = alignment_indices and played_notes and len(alignment_indices) > 0
+    # Prefer explicitly-built aligned windows (reference->played time windows).
+    use_aligned_windows = aligned_windows is not None and len(aligned_windows) > 0
+    # Fallback: still allow mapping via alignment_indices + map_technique_to_reference
+    use_alignment = (not use_aligned_windows) and alignment_indices and played_notes and len(alignment_indices) > 0
     
     total_score = 0.0
+
+    def _resolve_transition_ref_idx(trans: Dict[str, Any], reference_notes: List[Dict[str, Any]]):
+        """Resolve the reference index corresponding to transition 'from'.
+
+        Tries several heuristics: explicit index keys, integer 'from', matching note name fields, or closest time.
+        Returns integer index or None.
+        """
+        if not reference_notes:
+            return None
+
+        # explicit index fields
+        for k in ("from_index", "from_idx", "from_ref_idx", "ref_from_idx"):
+            if k in trans:
+                try:
+                    return int(trans[k])
+                except Exception:
+                    pass
+
+        fr = trans.get("from")
+        if fr is None:
+            # fallback to from_time proximity
+            ftime = trans.get("from_time")
+            if ftime is None:
+                return None
+            # find closest reference note by time
+            best_i = None
+            best_d = None
+            for i, n in enumerate(reference_notes):
+                t = n.get("time")
+                if t is None:
+                    continue
+                d = abs(float(t) - float(ftime))
+                if best_d is None or d < best_d:
+                    best_d = d
+                    best_i = i
+            return best_i
+
+        # if 'from' is numeric
+        try:
+            return int(fr)
+        except Exception:
+            pass
+
+        # if 'from' is a string note name, try to match common fields
+        fr_str = str(fr).strip()
+        for i, n in enumerate(reference_notes):
+            for key in ("name", "note", "sargam", "sargam_note", "label"):
+                val = n.get(key)
+                if val and str(val).strip().lower() == fr_str.lower():
+                    return i
+
+        # final fallback: match by time if available
+        ftime = trans.get("from_time")
+        if ftime is not None:
+            best_i = None
+            best_d = None
+            for i, n in enumerate(reference_notes):
+                t = n.get("time")
+                if t is None:
+                    continue
+                d = abs(float(t) - float(ftime))
+                if best_d is None or d < best_d:
+                    best_d = d
+                    best_i = i
+            return best_i
+
+        return None
 
     for trans_idx, trans in enumerate(expected_techniques):
         tech_type = trans.get("technique")
@@ -189,6 +259,15 @@ def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, d
         best_transition_score = 0.0
         best_match = None
 
+        # Resolve the true reference index for this transition's `from` note
+        ref_idx_from = _resolve_transition_ref_idx(trans, reference_notes)
+        # If caller provided a name->index map, prefer that for exact name matching
+        from_note_name = trans.get("from")
+        if ref_note_name_to_index and from_note_name:
+            mapped_idx = ref_note_name_to_index.get(from_note_name)
+            if mapped_idx is not None:
+                ref_idx_from = mapped_idx
+
         if tech_type == "meend":
             meends = detected.get("meend", [])
             
@@ -197,18 +276,43 @@ def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, d
                 m_cents = meend.get("cents_change", 0.0)
                 m_conf = meend.get("confidence", 0.5)
                 
-                # Compute position score
+                # Compute position score: prefer aligned_windows mapping when provided
                 position_score = 0.0
-                if use_alignment:
+                m_start = meend.get("start_time", 0.0)
+                m_end = meend.get("end_time", 0.0)
+
+                if use_aligned_windows:
+                    aligned_window = None
+                    if ref_idx_from is not None:
+                        aligned_window = next((w for w in aligned_windows if w.get("ref_idx_from") == ref_idx_from), None)
+                    if aligned_window:
+                        w_start = aligned_window.get("start_time", 0.0)
+                        w_end = aligned_window.get("end_time", 0.0)
+                        if m_start <= w_end and m_end >= w_start:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
+                    else:
+                        # No window found for this transition; fall back to time-based
+                        if m_start <= trans_end_time and m_end >= trans_start_time:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
+                elif use_alignment:
                     ref_range = map_technique_to_reference(meend, played_notes, alignment_indices)
                     if ref_range:
-                        # Map transition times to reference indices (simplified: use indices 0-based)
-                        # In reality, we'd need to map from_time/to_time to their reference note indices
-                        position_score = compute_position_score(ref_range, (trans_idx, trans_idx + 1))
+                        # Use resolved reference indices when available
+                        if ref_idx_from is not None:
+                            position_score = compute_position_score(ref_range, (ref_idx_from, ref_idx_from + 1))
+                        else:
+                            position_score = compute_position_score(ref_range, (trans_idx, trans_idx + 1))
+                    else:
+                        if m_start <= trans_end_time and m_end >= trans_start_time:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
                 else:
                     # Time-based position: if meend overlaps transition, score 1.0
-                    m_start = meend.get("start_time", 0.0)
-                    m_end = meend.get("end_time", 0.0)
                     if m_start <= trans_end_time and m_end >= trans_start_time:
                         position_score = 1.0
                     else:
@@ -250,16 +354,41 @@ def _score_transitions_expressive(detected: Dict[str, Any], transitions: list, d
                 g_amp = gamak.get("amplitude_cents", 0.0)
                 g_conf = gamak.get("confidence", 0.5)
                 
-                # Compute position score
+                # Compute position score for gamak
                 position_score = 0.0
-                if use_alignment:
+                g_start = gamak.get("start_time", 0.0)
+                g_end = gamak.get("end_time", 0.0)
+
+                if use_aligned_windows:
+                    aligned_window = None
+                    if ref_idx_from is not None:
+                        aligned_window = next((w for w in aligned_windows if w.get("ref_idx_from") == ref_idx_from), None)
+                    if aligned_window:
+                        w_start = aligned_window.get("start_time", 0.0)
+                        w_end = aligned_window.get("end_time", 0.0)
+                        if g_start <= w_end and g_end >= w_start:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
+                    else:
+                        if g_start <= trans_end_time and g_end >= trans_start_time:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
+                elif use_alignment:
                     ref_range = map_technique_to_reference(gamak, played_notes, alignment_indices)
                     if ref_range:
-                        position_score = compute_position_score(ref_range, (trans_idx, trans_idx + 1))
+                        if ref_idx_from is not None:
+                            position_score = compute_position_score(ref_range, (ref_idx_from, ref_idx_from + 1))
+                        else:
+                            position_score = compute_position_score(ref_range, (trans_idx, trans_idx + 1))
+                    else:
+                        if g_start <= trans_end_time and g_end >= trans_start_time:
+                            position_score = 1.0
+                        else:
+                            position_score = 0.3
                 else:
                     # Time-based position
-                    g_start = gamak.get("start_time", 0.0)
-                    g_end = gamak.get("end_time", 0.0)
                     if g_start <= trans_end_time and g_end >= trans_start_time:
                         position_score = 1.0
                     else:
@@ -343,6 +472,83 @@ def map_technique_to_reference(tech_segment: Dict[str, Any], played_notes: List[
         return None
     
     return min(ref_indices), max(ref_indices)
+
+
+def build_reference_to_played_map(alignment_indices: List[tuple]) -> Dict[int, List[int]]:
+    """
+    Build a mapping from reference index -> list of played indices.
+
+    Assumes alignment_indices is a list of (played_idx, ref_idx) tuples.
+    """
+    ref_map: Dict[int, List[int]] = {}
+    if not alignment_indices:
+        return ref_map
+
+    for pair in alignment_indices:
+        # accept either (played, ref) or (ref, played) defensively
+        if len(pair) >= 2:
+            a, b = pair[0], pair[1]
+        else:
+            continue
+
+        # Heuristic: if many ref indices are small and played indices large, prefer (played, ref)
+        played_idx, ref_idx = a, b
+        # ensure integers
+        try:
+            played_idx = int(played_idx)
+            ref_idx = int(ref_idx)
+        except Exception:
+            continue
+
+        ref_map.setdefault(ref_idx, []).append(played_idx)
+
+    return ref_map
+
+
+def build_aligned_transition_windows(reference_notes: List[Dict[str, Any]], played_notes: List[Dict[str, Any]], alignment_indices: List[tuple]) -> List[Dict[str, Any]]:
+    """
+    Build performance-space time windows for each adjacent reference transition.
+
+    Returns a list of windows with keys: ref_idx_from, ref_idx_to, start_time, end_time
+    """
+    windows: List[Dict[str, Any]] = []
+    if not reference_notes or not played_notes or not alignment_indices:
+        return windows
+
+    ref_map = build_reference_to_played_map(alignment_indices)
+    ref_count = len(reference_notes)
+
+    for ref_idx in range(ref_count - 1):
+        if ref_idx not in ref_map or (ref_idx + 1) not in ref_map:
+            # missing mapping for either side
+            continue
+
+        played_indices_from = ref_map[ref_idx]
+        played_indices_to = ref_map[ref_idx + 1]
+
+        # guard empties
+        if not played_indices_from or not played_indices_to:
+            continue
+
+        try:
+            start_time = min(float(played_notes[i].get("time", 0.0)) for i in played_indices_from)
+            end_time = max(float(played_notes[i].get("time", 0.0)) for i in played_indices_to)
+        except Exception:
+            # fallback if indices out of range
+            continue
+
+        # ensure window ordering
+        if end_time < start_time:
+            start_time, end_time = end_time, start_time
+
+        windows.append({
+            "ref_idx_from": ref_idx,
+            "ref_idx_to": ref_idx + 1,
+            "start_time": start_time,
+            "end_time": end_time,
+        })
+
+    return windows
 
 
 def _infer_direction(from_note: str, to_note: str) -> str:
@@ -680,7 +886,22 @@ def compare_with_reference(detected: Dict[str, Any], reference_phrase: Dict[str,
     
     if transitions:
         # Transition-based validation with expressive scoring
-        return _score_transitions_expressive(detected, transitions, details, played_notes, alignment_indices)
+        # If alignment info and played_notes available, build aligned windows
+        aligned_windows = None
+        ref_notes = reference_phrase.get("notes") or []
+        ref_note_name_to_index = None
+        if ref_notes:
+            # build name->index map for robust lookup; prefer 'note' field, then 'name'
+            ref_note_name_to_index = {}
+            for idx, note in enumerate(ref_notes):
+                key = note.get("note") or note.get("name") or note.get("sargam") or note.get("label")
+                if key:
+                    ref_note_name_to_index[str(key).strip()] = idx
+
+        if played_notes and alignment_indices and ref_notes:
+            aligned_windows = build_aligned_transition_windows(ref_notes, played_notes, alignment_indices)
+
+        return _score_transitions_expressive(detected, transitions, details, played_notes, alignment_indices, aligned_windows=aligned_windows, reference_notes=ref_notes, ref_note_name_to_index=ref_note_name_to_index)
     else:
         # Fallback to old phrase-based format for backward compatibility
         return _score_phrase_overlap(detected, reference_phrase, details)
@@ -848,7 +1069,7 @@ def _score_transitions(detected: Dict[str, Any], transitions: list, details: Dic
     DEPRECATED: Use _score_transitions_expressive instead.
     This function is kept for backward compatibility but delegates to the expressive model.
     """
-    return _score_transitions_expressive(detected, transitions, details, played_notes, alignment_indices)
+    return _score_transitions_expressive(detected, transitions, details, played_notes, alignment_indices, aligned_windows=None, reference_notes=None, ref_note_name_to_index=None)
 
 
 def _score_phrase_overlap(detected: Dict[str, Any], reference_phrase: Dict[str, Any], details: Dict[str, Any]) -> Dict[str, Any]:
@@ -920,3 +1141,10 @@ def _score_phrase_overlap(detected: Dict[str, Any], reference_phrase: Dict[str, 
                 total_score += score_per_tech
 
     return {"technique_score": round(total_score, 3), "details": details}
+
+
+
+
+
+
+

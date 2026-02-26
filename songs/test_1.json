@@ -1,0 +1,25 @@
+{
+  "id": "test_1",
+  "type": "exercise",
+  "title": "Sa to Re Meend Test",
+  "base_tempo": 60,
+  "phrases": [
+    {
+      "id": 0,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Re", "time": 1.0 }
+      ],
+      "transitions": [
+        {
+          "from": "Madhya Sa",
+          "to": "Madhya Re",
+          "from_time": 0.0,
+          "to_time": 1.0,
+          "technique": "meend"
+        }
+      ]
+    }
+  ]
+}

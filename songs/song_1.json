@@ -23,7 +23,7 @@
           "to": "Madhya Re",
           "from_time": 0.0,
           "to_time": 0.5,
-          "technique": null
+          "technique": "meend"
         },
         {
           "from": "Madhya Re",
@@ -37,14 +37,14 @@
           "to": "Madhya Ma",
           "from_time": 1.0,
           "to_time": 1.5,
-          "technique": "gamak"
+          "technique": "meend"
         },
         {
           "from": "Madhya Ma",
           "to": "Madhya Pa",
           "from_time": 1.5,
           "to_time": 2.0,
-          "technique": null
+          "technique": "meend"
         },
         {
           "from": "Madhya Pa",
@@ -58,14 +58,14 @@
           "to": "Madhya Ni",
           "from_time": 2.5,
           "to_time": 3.0,
-          "technique": "gamak"
+          "technique": "meend"
         },
         {
           "from": "Madhya Ni",
           "to": "Taar Sa",
           "from_time": 3.0,
           "to_time": 3.5,
-          "technique": null
+          "technique": "meend"
         }
       ]
     }
