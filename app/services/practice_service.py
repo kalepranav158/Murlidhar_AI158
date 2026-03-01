@@ -2,16 +2,19 @@ from fastapi import HTTPException
 import os
 import numpy as np
 import logging
-from app.services.adaptive_engine import generate_adaptive_plan
+from app.services.adaptive_engine import build_snapshot, generate_adaptive_plan
+from app.services.analytics_engine import compute_analytics
+from app.services.analytics_engine import compute_analytics
 from app.services.llm.feedback_llm import generate_guru_feedback, generate_normal_feedback
 from music.song_loader import load_song
-from database.db import save_session, update_alankar_mastery, update_phrase_mastery, is_song_mastered
+from database.db import save_session, update_alankar_mastery, update_phrase_mastery, is_song_mastered,save_analytics_snapshot
 from app.services.alankar_engine import compute_alankar_level
 from app.services.song_engine import generate_song_adaptive_plan
 from app.services.practice_endpoint.audio_core import process_audio_core
 from audio.techniques import compare_with_reference
 from app.services.curriculum_service import evaluate_curriculum_progress
 from app.services.llm.feedback_llm import _normalize_llm_feedback
+from app.services.analytics_engine import compute_analytics
 
 
 logger = logging.getLogger(__name__)
@@ -129,6 +132,11 @@ async def evaluate_alankar(
 
     # Save session
     save_session(user_id=user_id, reference=reference, played=played, result=result)
+    analytics = compute_analytics(user_id)
+
+    if analytics is not None:
+        save_analytics_snapshot(user_id,build_snapshot(analytics))
+
 
     # Alankar-specific: Compute level
     plateau_flag = False  # Will be set by adaptive plan logic
@@ -145,7 +153,7 @@ async def evaluate_alankar(
         alankar_id=song["id"],
         level_index=level_info["level_index"],
         tempo=level_info["recommended_tempo"],
-        composite_score=composite_score
+        analytics=compute_analytics(user_id)
     )
 
     # Generate adaptive plan
@@ -323,7 +331,8 @@ async def evaluate_song(
         phrase_id=phrase_index,
         accuracy=result["note_accuracy"],
         pitch_error=result["avg_pitch_error_cents"],
-        timing_error=result["avg_timing_error_sec"]
+        timing_error=result["avg_timing_error_sec"],
+        analytics=compute_analytics(user_id)  # Pass analytics for potential mastery curve adjustments
     )
 
     # Check if full song is unlocked

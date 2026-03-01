@@ -2,6 +2,11 @@ import sqlite3
 import json
 from datetime import datetime
 
+VOLATILITY_THRESHOLD = 8
+PHRASE_THRESHOLD = 90  # More realistic than 95
+
+
+
 DB_NAME = "Practice_data.db"
 
 
@@ -59,7 +64,8 @@ CREATE TABLE IF NOT EXISTS alankar_mastery (
     best_tempo INTEGER,
     average_score REAL,
     total_attempts INTEGER,
-    mastered INTEGER
+    mastered INTEGER,
+    successful_sessions INTEGER DEFAULT 0
 )
 """)
     
@@ -74,7 +80,8 @@ CREATE TABLE IF NOT EXISTS phrase_mastery (
     avg_pitch_error REAL,
     avg_timing_error REAL,
     total_attempts INTEGER,
-    mastered INTEGER
+    mastered INTEGER,
+    successful_sessions INTEGER DEFAULT 0
 )
 """)
 
@@ -88,51 +95,142 @@ CREATE TABLE IF NOT EXISTS student_progress (
 )
 """)
 
-    conn.commit()
-    conn.close()
+
+    # added student_progress table for tracking curriculum progress and unlocked content
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS skill_progress (
+    user_id TEXT,
+    content_id TEXT,
+    successful_sessions INTEGER,
+    is_unlocked INTEGER,
+    unlocked_at TEXT,
+    PRIMARY KEY (user_id, content_id)
+    )
+""")
 
 
-def save_session(user_id, reference, played, result):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO sessions (
-        user_id,
-        timestamp,
-        reference,
-        played_notes,
-        note_accuracy,
-        avg_pitch_error,
-        avg_timing_error,
-        mistakes,
-        composite_score,
-        pitch_index,
-        rhythm_index,
-        consistency_index,
-        technique_score
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-""", (
-    user_id,
-    datetime.now().isoformat(),
-    json.dumps(reference),
-    json.dumps(played),
-    result["note_accuracy"],
-    result["avg_pitch_error_cents"],
-    result["avg_timing_error_sec"],
-    json.dumps(result["mistakes"]),
-    result.get("composite_score"),
-    result.get("pitch_index"),
-    result.get("rhythm_index"),
-    result.get("consistency_index"),
-    result.get("technique_score"),
-))
+                   CREATE TABLE IF NOT EXISTS session_hash_registry (
+    session_hash TEXT PRIMARY KEY,
+    user_id TEXT,
+    created_at TEXT
+)"""
+                    )
+
+
+
+
+
+
+
+
+
 
     conn.commit()
     conn.close()
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+import hashlib
+
+def _table_columns(cursor, table_name: str) -> set[str]:
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    return {row[1] for row in cursor.fetchall()}
+
+
+def compute_session_hash(user_id, reference, played, skill_id: str | None = None):
+    payload = (
+        user_id +
+        (skill_id or "") +
+        json.dumps(reference, sort_keys=True) +
+        json.dumps(played, sort_keys=True)
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+def save_session(user_id, reference, played, result, skill_id: str | None = None, testng=False):
+    if not testng:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        # 🔒 BEGIN IMMEDIATE TRANSACTION
+        cursor.execute("BEGIN IMMEDIATE")
+
+        # 1️⃣ Compute deterministic session hash
+        session_hash = compute_session_hash(user_id, reference, played)
+
+        # 2️⃣ Check duplicate
+        cursor.execute("""
+            SELECT session_hash FROM session_hash_registry
+            WHERE session_hash = ?
+        """, (session_hash,))
+
+        if cursor.fetchone():
+            # Duplicate detected → do nothing
+            conn.rollback()
+            conn.close()
+            return {"status": "duplicate_rejected"}
+
+        # 3️⃣ Register hash
+        cursor.execute("""
+            INSERT INTO session_hash_registry (session_hash, user_id, created_at)
+            VALUES (?, ?, ?)
+        """, (
+            session_hash,
+            user_id,
+            datetime.now().isoformat()
+        ))
+
+        # 4️⃣ Insert session safely
+        cursor.execute("""
+            INSERT INTO sessions (
+                user_id,
+                timestamp,
+                reference,
+                played_notes,
+                note_accuracy,
+                avg_pitch_error,
+                avg_timing_error,
+                mistakes,
+                composite_score,
+                pitch_index,
+                rhythm_index,
+                consistency_index,
+                technique_score
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            datetime.now().isoformat(),
+            json.dumps(reference),
+            json.dumps(played),
+            result["note_accuracy"],
+            result["avg_pitch_error_cents"],
+            result["avg_timing_error_sec"],
+            json.dumps(result["mistakes"]),
+            result.get("composite_score"),
+            result.get("pitch_index"),
+            result.get("rhythm_index"),
+            result.get("consistency_index"),
+            result.get("technique_score"),
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return {"status": "saved"}
 
 def get_sessions(user_id: str , limit: int = 100):
     conn = sqlite3.connect(DB_NAME)
@@ -299,10 +397,32 @@ def count_mastered_songs(user_id: str) -> int:
             continue
     return total
 
+#---------------------------------------------------------------------------------------------------------------------
+# Analytics computations and snapshot management
+#-----------------------------------------------------------------------------------------------------------------
+    
+MAX_ANALYTICS_WINDOW= 30
+VOLATILITY_WINDOW=  5
+
+def compute_weighted_average(scores: list[float]) -> float:
+    if not scores:
+        return 0.0
+
+    weights = list(range(1, len(scores) + 1))
+    weighted_sum = sum(s * w for s, w in zip(scores, weights))
+    return weighted_sum / sum(weights)
+
+
+import statistics
+
+def compute_volatility(scores: list[float]) -> float:
+    if len(scores) <= 1:
+        return 0.0
+
+    window = scores[-min(VOLATILITY_WINDOW, len(scores)):]
+    return statistics.pstdev(window)
+
 def save_analytics_snapshot(user_id: str, snapshot: dict):
-    """
-    Saves structured analytics snapshot into database.
-    """
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -330,10 +450,20 @@ def save_analytics_snapshot(user_id: str, snapshot: dict):
         snapshot.get("trend_label")
     ))
 
+    # 🔹 Rolling window pruning
+    cursor.execute("""
+        DELETE FROM analytics_snapshots
+        WHERE id NOT IN (
+            SELECT id FROM analytics_snapshots
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        )
+        AND user_id = ?
+    """, (user_id, MAX_ANALYTICS_WINDOW, user_id))
+
     conn.commit()
     conn.close()
-
-
 
 def get_latest_analytics_snapshot(user_id: str):
     conn = sqlite3.connect(DB_NAME)
@@ -355,29 +485,67 @@ def get_latest_analytics_snapshot(user_id: str):
 
 
 
-def update_alankar_mastery(user_id: str, alankar_id: str, level_index: int, tempo: int, composite_score: float):
 
+
+
+def update_alankar_mastery(
+    user_id: str,
+    alankar_id: str,
+    level_index: int,
+    tempo: int,
+    threshold: float = 0.75,
+    analytics: dict | None = None
+):
+    if analytics is None:
+        return
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM alankar_mastery
+        SELECT id, highest_level, best_tempo,
+               average_score, total_attempts,
+               mastered, successful_sessions
+        FROM alankar_mastery
         WHERE user_id = ? AND alankar_id = ?
     """, (user_id, alankar_id))
 
     row = cursor.fetchone()
 
+    # 🔹 Get weighted analytics (Phase 3 integration)
+
+   
+
+    composite_score = analytics["indices"]["composite_score"]
+    volatility = analytics["volatility"]
+
+    success = False
+    if composite_score >= threshold and volatility < VOLATILITY_THRESHOLD:
+        success = True
+
     if row:
-        # Update existing
-        new_attempts = row[6] + 1
-        new_avg = ((row[5] * row[6]) + composite_score) / new_attempts
-        highest_level = max(row[3], level_index)
-        best_tempo = max(row[4], tempo)
-        mastered = 1 if new_avg >= 0.9 else 0
+        row_id, highest_level, best_tempo, prev_avg, prev_attempts, prev_mastered, prev_success = row
+
+        new_attempts = prev_attempts + 1
+        new_avg = ((prev_avg * prev_attempts) + composite_score) / new_attempts
+        highest_level = max(highest_level, level_index)
+        best_tempo = max(best_tempo, tempo)
+
+        if success:
+            prev_success += 1
+
+        # Forward-only unlock
+        mastered = prev_mastered
+        if not prev_mastered and prev_success >= 3:
+            mastered = 1
 
         cursor.execute("""
             UPDATE alankar_mastery
-            SET highest_level=?, best_tempo=?, average_score=?, total_attempts=?, mastered=?
+            SET highest_level=?,
+                best_tempo=?,
+                average_score=?,
+                total_attempts=?,
+                mastered=?,
+                successful_sessions=?
             WHERE id=?
         """, (
             highest_level,
@@ -385,18 +553,26 @@ def update_alankar_mastery(user_id: str, alankar_id: str, level_index: int, temp
             new_avg,
             new_attempts,
             mastered,
-            row[0]
+            prev_success,
+            row_id
         ))
 
     else:
-        mastered = 1 if composite_score >= 0.9 else 0
+        success_count = 1 if success else 0
+        mastered = 1 if success_count >= 3 else 0
 
         cursor.execute("""
             INSERT INTO alankar_mastery (
-                user_id, alankar_id, highest_level, best_tempo,
-                average_score, total_attempts, mastered
+                user_id,
+                alankar_id,
+                highest_level,
+                best_tempo,
+                average_score,
+                total_attempts,
+                mastered,
+                successful_sessions
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             alankar_id,
@@ -404,12 +580,12 @@ def update_alankar_mastery(user_id: str, alankar_id: str, level_index: int, temp
             tempo,
             composite_score,
             1,
-            mastered
+            mastered,
+            success_count
         ))
 
     conn.commit()
     conn.close()
-
 
 
 
@@ -420,31 +596,54 @@ def update_phrase_mastery(
     phrase_id: int,
     accuracy: float,
     pitch_error: float,
-    timing_error: float
+    timing_error: float,
+    analytics: dict | None = None
 ):
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM phrase_mastery
+        SELECT id, avg_accuracy, avg_pitch_error,
+               avg_timing_error, total_attempts,
+               mastered, successful_sessions
+        FROM phrase_mastery
         WHERE user_id=? AND song_id=? AND phrase_id=?
     """, (user_id, song_id, phrase_id))
 
     row = cursor.fetchone()
 
-    if row:
-        new_attempts = row[7] + 1
-        new_avg_accuracy = ((row[4] * row[7]) + accuracy) / new_attempts
-        new_avg_pitch = ((row[5] * row[7]) + pitch_error) / new_attempts
-        new_avg_timing = ((row[6] * row[7]) + timing_error) / new_attempts
+    # Phase 3 analytics
 
-        mastered = 1 if new_avg_accuracy >= 95 else 0
+    volatility = analytics["volatility"] if analytics else 999
+    success = False
+    if accuracy >= PHRASE_THRESHOLD and volatility < VOLATILITY_THRESHOLD:
+        success = True
+
+    if row:
+        row_id, prev_acc, prev_pitch, prev_timing, prev_attempts, prev_mastered, prev_success = row
+
+        new_attempts = prev_attempts + 1
+        new_avg_accuracy = ((prev_acc * prev_attempts) + accuracy) / new_attempts
+        new_avg_pitch = ((prev_pitch * prev_attempts) + pitch_error) / new_attempts
+        new_avg_timing = ((prev_timing * prev_attempts) + timing_error) / new_attempts
+
+        if success:
+            prev_success += 1
+
+        # Forward-only unlock
+        mastered = prev_mastered
+        if not prev_mastered and prev_success >= 3:
+            mastered = 1
 
         cursor.execute("""
             UPDATE phrase_mastery
-            SET avg_accuracy=?, avg_pitch_error=?, avg_timing_error=?,
-                total_attempts=?, mastered=?
+            SET avg_accuracy=?,
+                avg_pitch_error=?,
+                avg_timing_error=?,
+                total_attempts=?,
+                mastered=?,
+                successful_sessions=?
             WHERE id=?
         """, (
             new_avg_accuracy,
@@ -452,19 +651,22 @@ def update_phrase_mastery(
             new_avg_timing,
             new_attempts,
             mastered,
-            row[0]
+            prev_success,
+            row_id
         ))
 
     else:
-        mastered = 1 if accuracy >= 95 else 0
+        success_count = 1 if success else 0
+        mastered = 1 if success_count >= 3 else 0
 
         cursor.execute("""
             INSERT INTO phrase_mastery (
                 user_id, song_id, phrase_id,
                 avg_accuracy, avg_pitch_error,
-                avg_timing_error, total_attempts, mastered
+                avg_timing_error, total_attempts,
+                mastered, successful_sessions
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             song_id,
@@ -473,14 +675,12 @@ def update_phrase_mastery(
             pitch_error,
             timing_error,
             1,
-            mastered
+            mastered,
+            success_count
         ))
 
     conn.commit()
-    conn.close()    
-
-
-
+    conn.close()
 
 def get_weakest_phrase(user_id: str, song_id: str):
 
@@ -526,3 +726,9 @@ def is_song_mastered(user_id: str, song_id: str, total_phrases: int):
     conn.close()
 
     return mastered_count >= total_phrases
+
+
+
+
+
+

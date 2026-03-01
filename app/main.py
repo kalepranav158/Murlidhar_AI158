@@ -6,7 +6,7 @@ import json
 from app.routes import sessions
 from app.routes import analytics
 from app.routes import ask
-
+from app.routes import debug
 import logging
 
 logging.basicConfig(
@@ -34,6 +34,7 @@ app.include_router(songs.router)
 app.include_router(sessions.router)
 app.include_router(analytics.router)
 app.include_router(ask.router)
+app.include_router(debug.router)
 
 
 

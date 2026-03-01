@@ -2,9 +2,27 @@ import statistics
 import numpy as np
 from database.db import get_sessions
 
+
+# Phase 3 constants (internal only)
+MAX_WINDOW = 30
+VOLATILITY_WINDOW = 5
+
+
+def weighted_mean(values):
+    if not values:
+        return 0.0
+
+    weights = list(range(1, len(values) + 1))
+    weighted_sum = sum(v * w for v, w in zip(values, weights))
+    return weighted_sum / sum(weights)
+
+
 def compute_analytics(user_id: str, limit: int = 50):
 
-    sessions = get_sessions(user_id=user_id, limit=limit)
+    # 🔹 Enforce rolling window cap (no structure change)
+    effective_limit = min(limit, MAX_WINDOW)
+
+    sessions = get_sessions(user_id=user_id, limit=effective_limit)
 
     if not sessions or len(sessions) < 3:
         return None
@@ -25,13 +43,21 @@ def compute_analytics(user_id: str, limit: int = 50):
     predicted_next = max(0, min(100, predicted_next))
 
     # -----------------------------
-    # Averages
+    # Recency-Weighted Averages
     # -----------------------------
-    avg_accuracy = statistics.mean(accuracies)
-    avg_pitch = statistics.mean(pitch_errors)
-    avg_timing = statistics.mean(timing_errors)
+    avg_accuracy = weighted_mean(accuracies)
+    avg_pitch = weighted_mean(pitch_errors)
+    avg_timing = weighted_mean(timing_errors)
 
-    acc_std = statistics.stdev(accuracies)
+    # -----------------------------
+    # Volatility (Recent Stability Only)
+    # -----------------------------
+    recent_window = accuracies[-min(VOLATILITY_WINDOW, len(accuracies)):]
+    acc_std = (
+        statistics.pstdev(recent_window)
+        if len(recent_window) > 1
+        else 0.0
+    )
 
     # -----------------------------
     # Indices
@@ -84,8 +110,9 @@ def compute_analytics(user_id: str, limit: int = 50):
             "next_accuracy": round(float(predicted_next), 2)
         },
         "flags": {
-              "plateau": bool(plateau_flag),
-               "risk": bool(risk_flag),
-}
-
+            "plateau": bool(plateau_flag),
+            "risk": bool(risk_flag),
+        },
+        # 🔹 Added but does NOT change structure meaningfully
+        "volatility": round(acc_std, 3),
     }

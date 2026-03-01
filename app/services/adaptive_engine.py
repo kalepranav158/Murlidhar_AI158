@@ -1,6 +1,8 @@
 from app.services.analytics_engine import compute_analytics
 from typing import Optional
 
+from database.db import save_analytics_snapshot
+
 # for now not in use - will be integrated into practice_service after testing
 # ----------------------------------------
 # 1️⃣ Adaptive Tempo
@@ -169,3 +171,14 @@ def generate_adaptive_plan(
 
 
 
+
+
+def build_snapshot(analytics: dict) -> dict:
+    return {
+        "average_accuracy": analytics["summary"]["average_accuracy"],
+        "trend_slope": analytics["trend"]["slope"],
+        "predicted_next_accuracy": analytics["prediction"]["next_accuracy"],
+        "consistency_index": analytics["indices"]["consistency_index"],
+        "difficulty_recommendation": analytics["trend"]["classification"],
+        "trend_label": analytics["trend"]["classification"],
+    }
