@@ -1,0 +1,189 @@
+export type MessagePayload = {
+  message: string;
+  error?: string;
+};
+
+export type StudentProfileApi = {
+  current_level?: string;
+  unlocked_content?: string[];
+  mastered_content?: string[];
+  recommended_content?: string | null;
+  composite_score?: number | null;
+  reason?: string | null;
+};
+
+export type StudentCurriculumApi = {
+  current_level?: string;
+  unlocked_content?: string[];
+  mastered_content?: string[];
+  skill_snapshot?: {
+    accuracy?: number;
+    rhythm_index?: number;
+    technique_score?: number;
+    composite_score?: number;
+  };
+  recommended_content?: string | null;
+  reason?: string | null;
+  locked?: string[];
+  next_goal?: string | null;
+};
+
+export type StudentAnalyticsApi = {
+  summary?: {
+    average_accuracy?: number;
+    average_pitch_error?: number;
+    average_timing_error?: number;
+    best_accuracy?: number;
+    worst_accuracy?: number;
+  };
+  trend?: {
+    slope?: number;
+    classification?: string;
+  };
+  indices?: {
+    pitch_index?: number;
+    rhythm_index?: number;
+    consistency_index?: number;
+    composite_score?: number;
+  };
+  prediction?: {
+    next_accuracy?: number;
+  };
+  flags?: {
+    plateau?: boolean;
+    risk?: boolean;
+  };
+  volatility?: number;
+};
+
+export type AnalyticsSummaryApi = {
+  total_sessions?: number;
+  average_note_accuracy?: number;
+  average_pitch_error?: number;
+  average_timing_error?: number;
+  best_note_accuracy?: number;
+  worst_note_accuracy?: number;
+};
+
+export type AnalyticsTrendApi = {
+  accuracy_series?: Array<{
+    session: number;
+    accuracy: number;
+  }>;
+};
+
+export type AnalyticsSkillLevelApi = {
+  skill_level?: string;
+  average_note_accuracy?: number;
+  average_pitch_error?: number;
+  average_timing_error?: number;
+};
+
+export type AnalyticsConsistencyApi = {
+  accuracy_standard_deviation?: number;
+  consistency_level?: string;
+};
+
+export type AnalyticsPitchStabilityApi = {
+  average_pitch_error?: number;
+  mean_pitch_error?: number;
+  pitch_variation?: number;
+  pitch_control_level?: string;
+};
+
+export type AnalyticsRecommendationApi = {
+  recommended_tempo_adjustment?: string;
+  practice_focus?: string;
+  suggestion?: string;
+};
+
+export type AnalyticsConsistencyDetailsApi = {
+  accuracy_variation?: number;
+  pitch_variation?: number;
+  timing_variation?: number;
+  primary_instability_source?: string;
+};
+
+export type AnalyticsWeakestPhraseApi = {
+  phrase_id?: number;
+  avg_accuracy?: number;
+  attempts?: number;
+};
+
+export type StudentStreakApi = {
+  user_id?: string;
+  current_streak?: number;
+  longest_streak?: number;
+  total_practice_days?: number;
+  last_practice_logical_date?: string | null;
+  last_practice_date?: string | null;
+};
+
+export type SessionsApi = {
+  count?: number;
+  sessions?: Array<{
+    id?: number;
+    timestamp?: string;
+    note_accuracy?: number;
+    avg_pitch_error?: number;
+    avg_timing_error?: number;
+    composite_score?: number;
+    pitch_index?: number;
+    rhythm_index?: number;
+    consistency_index?: number;
+    technique_score?: number;
+  }>;
+};
+
+export type SongListItemApi = {
+  song_id: string;
+  title?: string;
+  tempo?: number | null;
+  phrases?: number;
+};
+
+export type PracticeApi = {
+  song?: string;
+  phrase_index?: number;
+  dtw_cost?: number;
+  full_song_unlocked?: boolean;
+  evaluation?: {
+    note_accuracy?: number;
+    avg_pitch_error_cents?: number | null;
+    avg_timing_error_sec?: number | null;
+    mistakes?: unknown[];
+    feedback?: unknown;
+  };
+  adaptive_plan?: Record<string, unknown>;
+  song_adaptive_plan?: Record<string, unknown>;
+  technique_score?: number | null;
+  technique_details?: Record<string, unknown>;
+  curriculum?: StudentCurriculumApi;
+  played_notes?: Array<{
+    note?: string;
+    cents?: number;
+    time?: number;
+  }>;
+};
+
+export type AskRequestApi = {
+  question: string;
+};
+
+export type AskResponseApi = {
+  mode?: string;
+  description?: string;
+  confidence_score?: number;
+  [key: string]: unknown;
+};
+
+export type DebugSessionsApi = {
+  user_id?: string;
+  total_returned?: number;
+  sessions?: Array<Record<string, unknown>>;
+  timestamp?: string;
+};
+
+export type RootHealthApi = {
+  message?: string;
+};
