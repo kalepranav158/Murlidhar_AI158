@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import tempfile
 from datetime import timedelta
+from typing import Optional
 
 VOLATILITY_THRESHOLD = 8
 PHRASE_THRESHOLD = 90  # More realistic than 95
@@ -14,7 +15,7 @@ DB_NAME = "Practice_data.db"
 _TEST_DB_FILE = None
 
 
-def init_db(db_name: str = None):
+def init_db(db_name: Optional[str] = None):
     global DB_NAME, _TEST_DB_FILE
 
     if db_name:
@@ -258,8 +259,8 @@ def session_hash_exists(session_hash: str) -> bool:
 def register_session_hash(
     session_hash: str,
     user_id: str,
-    skill_id: str = None,
-    session_id: int = None,
+    skill_id: Optional[str] = None,
+    session_id: Optional[int] = None,
 ):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -279,7 +280,7 @@ def update_skill_progress(
     user_id: str,
     skill_id: str,
     composite_score: float,
-    session_hash: str = None,
+    session_hash: Optional[str] = None,
     threshold: float = 0.75,
 ):
     conn = sqlite3.connect(DB_NAME)
@@ -439,7 +440,7 @@ def get_practice_streak(user_id: str) -> dict:
     return dict(row)
 
 
-def update_practice_streak(user_id: str, current_date: datetime = None) -> dict:
+def update_practice_streak(user_id: str, current_date: Optional[datetime] = None) -> dict:
     now_utc = current_date or datetime.utcnow()
     today = get_logical_date(user_id, now_utc)
 
@@ -896,7 +897,7 @@ def update_alankar_mastery(
     alankar_id: str,
     level_index: int,
     tempo: int,
-    composite_score: float | None = None,
+    composite_score: Optional[float] = None,
     threshold: float = 0.75,
     analytics: dict | None = None
 ):
@@ -925,7 +926,9 @@ def update_alankar_mastery(
 
    
 
-    composite_score = analytics["indices"]["composite_score"]
+    composite_score = analytics["indices"].get("composite_score")
+    if composite_score is None:
+        composite_score = 0.0
     volatility = analytics["volatility"]
 
     success = False
