@@ -2,39 +2,34 @@
 
 ## Status Report
 
-Current system state is a strong backend foundation with partial hardening.
+Current system state is a canonical progression + streak baseline with targeted validation complete.
 
 ### Completed and Working
 
 - Session persistence pipeline is active in `database/db.py` via `save_session(...)`.
 - Idempotency guard is present using `session_hash_registry` + deterministic hash in `compute_session_hash(...)`.
 - Analytics snapshot persistence exists with rolling pruning to last 30 snapshots per user in `save_analytics_snapshot(...)`.
-- Mastery tracking for alankars and song phrases supports forward-only unlock after 3 successful sessions:
-  - `update_alankar_mastery(...)`
-  - `update_phrase_mastery(...)`
-- Volatility-aware success gating is integrated into mastery updates.
-- Debug API routes are available in `app/routes/debug.py` and mounted in `app/main.py`.
+- Canonical progression tracking is active via `update_skill_progress(...)` with:
+  - `skill_type` awareness (`alankar`, `phrase`, extensible)
+  - `successful_sessions` + `total_sessions`
+  - `composite_average` + `recent_weighted_average`
+  - forward-only unlock after 3 successful sessions
+- Practice service writes directly to canonical progression (no legacy wrapper path).
+- Timezone-safe streak model is active (`user_profile`, `practice_streak`, `practice_days`).
+- Debug API routes are available in `app/routes/debug.py` and mounted conditionally in `app/main.py` via `DEBUG_ENDPOINTS`.
 - Database auto-initialization on app startup is enabled in `app/main.py`.
 - Curriculum recommendation flow now prioritizes newly unlocked content.
 - Technique detector robustness improved for micro-jitter monotonic glide detection.
 
-### Partially Implemented / Needs Consolidation
+### Hardening Completed
 
-- `skill_progress` table exists but is not yet the single source of truth for all mastery flows.
-- Some advanced edge-case helpers documented earlier remain in target-state docs and are now partially reintroduced for compatibility with legacy tests.
-- Debug routes are always enabled; env-based gating is not currently implemented.
-
-### Not Implemented Yet (High Priority Gaps)
-
-- Timezone-safe streak system (`user_profile`, logical date handling, streak table + API flow).
-- Unified mastery service around one canonical progression model (`skill_progress`-first architecture).
-- Full production hardening of compatibility paths currently used for legacy test coverage.
+- Debug route environment gating is active (`DEBUG_ENDPOINTS=false` default).
+- Legacy mastery physical tables are archived to `_legacy_*` and replaced by read-only compatibility views.
 
 ## Verification Snapshot
 
-- Syntax-level health check completed with `python -m compileall` in configured conda interpreter.
-- Full automated test suite executed in conda env `gokul`.
-- Result: `23 passed in 3.43s`.
+- Targeted regression tests executed in configured conda environment.
+- Result: `16 passed` (`test_edge_cases.py`, `test_curriculum.py`).
 
 ## Upcoming Plans
 
@@ -44,17 +39,11 @@ Current system state is a strong backend foundation with partial hardening.
 - Add one-command test task for local verification.
 - Document environment bootstrap steps in developer quick-start.
 
-### Phase 2: Progression Model Unification
+### Phase 2: Legacy Data Decommissioning
 
-- Move mastery writes/reads to one canonical layer (target: `skill_progress`).
-- Keep alankar/phrase specific stats, but derive unlock state consistently.
-- Add data migration path for existing records.
-
-### Phase 3: Streak & Timezone Hardening
-
-- Add user timezone persistence and logical-day computation.
-- Introduce streak update/read functions with same-day dedupe.
-- Add API and tests for boundary cases (UTC midnight, timezone changes).
+- Decide retention window for old mastery tables.
+- Add one-way archival/export if needed.
+- Remove legacy table creation/migration once safe.
 
 ### Phase 4: Debug & Ops Safety
 
@@ -62,9 +51,6 @@ Current system state is a strong backend foundation with partial hardening.
 - Add lightweight health/status endpoint exposing build/test/runtime metadata.
 - Document production-safe defaults.
 
-## Immediate Next Sprint Targets
-
-1. Implement full timezone-safe streak subsystem (table + APIs + route integration).
-2. Finish mastery model consolidation and migration.
-3. Add environment-gated debug routing.
-4. Align architecture and target-state docs with code-level APIs.
+## v1 Backend Freeze
+Date: 2026-03-02
+All freeze checklist items completed.

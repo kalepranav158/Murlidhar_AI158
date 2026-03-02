@@ -26,8 +26,8 @@ Current implementation note:
 - Progression is forward-only
 
 Current implementation note:
-- Enforced in `update_alankar_mastery(...)` and `update_phrase_mastery(...)`.
-- Legacy compatibility helper `update_skill_progress(...)` is available for edge-case test coverage.
+- Enforced in canonical `update_skill_progress(...)` for all skill types.
+- Forward-only unlock integrity is additionally guarded by DB check constraints.
 
 ## Analytics Philosophy
 - Rolling window aggregation
@@ -43,10 +43,20 @@ Current implementation note:
 - Unlocked but unmastered content is recommended next.
 - Newly unlocked content gets recommendation priority.
 
+## Streak Domain
+- Timezone offset is user-level (`user_profile`).
+- Logical day is computed from UTC timestamp + user offset.
+- Idempotent per day using `practice_days` dedupe.
+- Streak increments only on new logical-day records.
+
 ## Operational Reality
-- Debug routes are currently mounted by default.
-- Environment-gated debug switch is a planned hardening step.
-- Timezone-safe streak is partially covered through compatibility paths and remains a target for first-class domain implementation.
+- Debug routes are environment-gated via `DEBUG_ENDPOINTS`.
+- Production default keeps debug routes disabled.
+- Timezone-safe streak is implemented in the DB layer.
 
 ## Validation Snapshot
-- Latest full test run in conda env `gokul`: `23 passed`.
+- Latest targeted regression run: `16 passed` (`test_edge_cases.py`, `test_curriculum.py`).
+
+## v1 Backend Freeze
+Date: 2026-03-02
+All freeze checklist items completed.

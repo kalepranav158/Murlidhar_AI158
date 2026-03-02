@@ -5,8 +5,7 @@
 from fastapi import APIRouter
 import sqlite3
 from datetime import datetime
-
-DB_NAME = "Practice_data.db"
+import database.db as db
 
 router = APIRouter(prefix="/debug", tags=["Debug"])
 
@@ -18,7 +17,7 @@ router = APIRouter(prefix="/debug", tags=["Debug"])
 @router.get("/sessions/{user_id}")
 async def debug_sessions(user_id: str, limit: int = 10):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -50,21 +49,21 @@ async def debug_sessions(user_id: str, limit: int = 10):
 @router.get("/alankar/{user_id}/{alankar_id}")
 async def debug_alankar_mastery(user_id: str, alankar_id: str):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
-        FROM alankar_mastery
-        WHERE user_id = ? AND alankar_id = ?
+        FROM skill_progress
+        WHERE user_id = ? AND skill_id = ? AND skill_type = 'alankar'
     """, (user_id, alankar_id))
 
     row = cursor.fetchone()
     conn.close()
 
     if not row:
-        return {"message": "No mastery record found"}
+        return {"message": "No skill_progress record found"}
 
     return dict(row)
 
@@ -76,21 +75,21 @@ async def debug_alankar_mastery(user_id: str, alankar_id: str):
 @router.get("/phrase/{user_id}/{song_id}/{phrase_id}")
 async def debug_phrase_mastery(user_id: str, song_id: str, phrase_id: int):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
-        FROM phrase_mastery
-        WHERE user_id = ? AND song_id = ? AND phrase_id = ?
-    """, (user_id, song_id, phrase_id))
+        FROM skill_progress
+        WHERE user_id = ? AND skill_id = ? AND skill_type = 'phrase'
+    """, (user_id, f"{song_id}:phrase:{phrase_id}"))
 
     row = cursor.fetchone()
     conn.close()
 
     if not row:
-        return {"message": "No phrase mastery record found"}
+        return {"message": "No phrase skill_progress record found"}
 
     return dict(row)
 
@@ -102,7 +101,7 @@ async def debug_phrase_mastery(user_id: str, song_id: str, phrase_id: int):
 @router.get("/analytics/{user_id}")
 async def debug_analytics_snapshots(user_id: str, limit: int = 30):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -142,7 +141,7 @@ async def debug_analytics_snapshots(user_id: str, limit: int = 30):
 @router.get("/student/{user_id}")
 async def debug_student_progress(user_id: str):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 

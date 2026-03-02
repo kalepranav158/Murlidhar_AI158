@@ -1,17 +1,30 @@
 import os
 import json
 import pytest
-from database.db import init_db, DB_NAME, update_alankar_mastery
+import uuid
+import database.db as db
+from database.db import init_db, update_skill_progress
 from app.services.curriculum_service import evaluate_curriculum_progress
 
 USER = "test_user"
+TEST_DB = None
+
+
+def _assert_not_live_db(path: str):
+    live_name = "practice_data.db"
+    if os.path.basename(path).lower() == live_name:
+        raise RuntimeError(
+            "Refusing to run tests against live Practice_data.db. "
+            "Use an isolated test DB file."
+        )
 
 
 def setup_module(module):
-    # ensure fresh database for tests
-    if os.path.exists(DB_NAME):
-        os.remove(DB_NAME)
-    init_db()
+    global TEST_DB
+    TEST_DB = f"test_curriculum_{uuid.uuid4().hex}.db"
+    _assert_not_live_db(TEST_DB)
+    db.DB_NAME = TEST_DB
+    init_db(TEST_DB)
     # create a simple alankar json for unlocking
     content = {
         "id": "alankar_test",
@@ -40,10 +53,16 @@ def setup_module(module):
 
 
 def teardown_module(module):
+    global TEST_DB
     # clean up
     for fname in ["songs/alankar_test.json", "songs/alankar_next.json"]:
         try:
             os.remove(fname)
+        except OSError:
+            pass
+    if TEST_DB and os.path.exists(TEST_DB):
+        try:
+            os.remove(TEST_DB)
         except OSError:
             pass
 
@@ -59,8 +78,9 @@ def test_initial_profile_empty():
 
 
 def test_unlock_after_mastering():
-    # simulate mastering the test alankar
-    update_alankar_mastery(USER, "alankar_test", level_index=1, tempo=60, composite_score=0.95)
+    # canonical model unlocks after 3 successful sessions
+    for _ in range(3):
+        update_skill_progress(USER, "alankar_test", "alankar", 0.95, 0.75)
     cur = evaluate_curriculum_progress(USER)
     assert "alankar_test" in cur["mastered_content"]
     assert "alankar_next" in cur["unlocked_content"]

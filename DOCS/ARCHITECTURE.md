@@ -2,7 +2,7 @@
 
 Status: Current implementation view (reviewed 2026-03-02)
 
-This document describes what is implemented now, and where target-state work remains.
+This document describes the current implemented architecture.
 
 ## 1. Evaluation Pipeline
 WAV
@@ -50,15 +50,27 @@ Aggregated Composite
 
 Implemented in:
 - `database/db.py`
-	- `update_alankar_mastery(...)`
-	- `update_phrase_mastery(...)`
-	- compatibility path: `update_skill_progress(...)`
+	- `update_skill_progress(...)` (single canonical update path)
 
 Current note:
 - Forward-only unlock is implemented.
-- Canonical unification to a single `skill_progress`-first path is still in progress.
+- `skill_progress` is now the source of truth for alankar and phrase unlock progression.
 
-## 5. Curriculum Engine
+## 5. Streak Engine
+UTC Timestamp
+ → User Timezone Offset
+ → Logical Date
+ → Idempotent Daily Insert
+ → Streak Update
+
+Implemented in:
+- `database/db.py`
+	- `set_user_timezone(...)`
+	- `get_logical_date(...)`
+	- `update_practice_streak(...)`
+	- `practice_days` table (daily dedupe)
+
+## 6. Curriculum Engine
 Skill Snapshot
  → Level Assignment
  → Content Unlock
@@ -71,7 +83,7 @@ Implemented in:
 Current note:
 - Recommendation now prioritizes newly unlocked content from newly mastered items.
 
-## 6. Analytics Engine
+## 7. Analytics Engine
 Session History
  → Rolling Aggregation
  → Index Normalization
@@ -85,15 +97,19 @@ Current note:
 - Rolling window pruning is active.
 - Configurable weights are active via `COMPOSITE_CONFIG`.
 
-## 7. Observability & Debug
+## 8. Observability & Debug
 
 Implemented:
 - Debug endpoints in `app/routes/debug.py`
-- Router mounted in `app/main.py`
+- Router mounted conditionally in `app/main.py` (`DEBUG_ENDPOINTS=true` only)
 
 Current note:
-- Environment-gated debug enable/disable is planned, not yet enforced.
+- Environment-gated debug enable/disable is enforced.
 
-## 8. Validation Status
+## 9. Validation Status
 
-- Full test suite status: `23 passed` in conda environment `gokul`.
+- Targeted canonical regression suite status: `16 passed` (`test_edge_cases.py`, `test_curriculum.py`).
+
+## v1 Backend Freeze
+Date: 2026-03-02
+All freeze checklist items completed.

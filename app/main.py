@@ -34,7 +34,10 @@ app.include_router(songs.router)
 app.include_router(sessions.router)
 app.include_router(analytics.router)
 app.include_router(ask.router)
-app.include_router(debug.router)
+
+DEBUG_ENDPOINTS_ENABLED = os.getenv("DEBUG_ENDPOINTS", "false").lower() == "true"
+if DEBUG_ENDPOINTS_ENABLED:
+    app.include_router(debug.router)
 
 
 

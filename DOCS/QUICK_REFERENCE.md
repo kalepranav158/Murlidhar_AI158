@@ -29,21 +29,18 @@ result = save_session(
 # result: {"status": "saved"} or {"status": "duplicate_rejected"}
 ```
 
-## 2) Update Mastery (Alankar)
+## 2) Update Canonical Skill Progress
 
 ```python
-from database.db import update_alankar_mastery
+from database.db import update_skill_progress
 
-update_alankar_mastery(
+update_skill_progress(
     user_id="user_123",
-    alankar_id="alankar_1",
-    level_index=1,
-    tempo=70,
+    skill_id="alankar_1",
+    skill_type="alankar",
+    composite_score=0.82,
     threshold=0.75,
-    analytics={
-        "indices": {"composite_score": 0.82},
-        "volatility": 4.0,
-    },
+    session_hash="optional_deterministic_hash",
 )
 ```
 
@@ -52,23 +49,36 @@ Unlock behavior:
 - unlocks when successful sessions reach 3
 - unlock is forward-only
 
-## 3) Update Phrase Mastery (Song)
+## 3) Update Phrase Progress (Song)
 
 ```python
-from database.db import update_phrase_mastery
+from database.db import update_skill_progress
 
-update_phrase_mastery(
+update_skill_progress(
     user_id="user_123",
-    song_id="song_1",
-    phrase_id=1,
-    accuracy=92.0,
-    pitch_error=9.5,
-    timing_error=0.04,
-    analytics={"volatility": 3.2},
+    skill_id="song_1:phrase:1",
+    skill_type="phrase",
+    composite_score=0.92,
+    threshold=0.90,
+    session_hash="optional_deterministic_hash",
 )
 ```
 
-## 4) Save Analytics Snapshot (Auto-Pruned)
+## 4) Update Practice Streak (Timezone-Safe)
+
+```python
+from database.db import set_user_timezone, update_practice_streak
+
+set_user_timezone("user_123", timezone_offset_minutes=330)
+streak = update_practice_streak("user_123")
+```
+
+Streak behavior:
+- uses `logical_date = utc_now + user_offset`
+- dedupes by `(user_id, logical_date)` via `practice_days`
+- same-day repeated submissions do not double increment
+
+## 5) Save Analytics Snapshot (Auto-Pruned)
 
 ```python
 from database.db import save_analytics_snapshot
@@ -89,16 +99,16 @@ save_analytics_snapshot(
 Pruning behavior:
 - Keeps only latest 30 snapshots per user.
 
-## 5) Debug Endpoints
+## 6) Debug Endpoints
 
 ```bash
 # Sessions
 GET /debug/sessions/{user_id}?limit=10
 
-# Alankar mastery row
+# Alankar skill progress row
 GET /debug/alankar/{user_id}/{alankar_id}
 
-# Phrase mastery row
+# Phrase skill progress row
 GET /debug/phrase/{user_id}/{song_id}/{phrase_id}
 
 # Analytics window
@@ -108,15 +118,18 @@ GET /debug/analytics/{user_id}?limit=30
 GET /debug/student/{user_id}
 ```
 
-## 6) Environment / Validation Commands
+## 7) Environment / Validation Commands
 
 ```bash
+# One-command backend freeze audit
+python freeze_audit.py
+
 # Syntax health check
 python -m compileall -q app database analytics dtw evaluation llm music audio
 
 # Test run (requires pytest installed in active environment)
 python -m pytest -q
 
-# Conda (gokul) explicit test run
-C:/Users/Pranav/miniconda3/Scripts/conda.exe run -n gokul --no-capture-output python -m pytest -q
+# Conda explicit test run (workspace-configured env)
+C:/Users/Pranav/miniconda3/Scripts/conda.exe run -p C:/Users/Pranav/miniconda3 --no-capture-output python -m pytest -q
 ```

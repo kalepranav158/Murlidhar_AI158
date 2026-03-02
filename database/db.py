@@ -1,18 +1,83 @@
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import tempfile
+from pathlib import Path
 from datetime import timedelta
 from typing import Optional
 
-VOLATILITY_THRESHOLD = 8
-PHRASE_THRESHOLD = 90  # More realistic than 95
-
-
-
-DB_NAME = "Practice_data.db"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DB_NAME = str(_PROJECT_ROOT / "Practice_data.db")
 _TEST_DB_FILE = None
+
+
+def _archive_legacy_mastery_structures(cursor):
+    cursor.execute(
+        """
+        SELECT type, name
+        FROM sqlite_master
+        WHERE name IN (
+            'alankar_mastery',
+            'phrase_mastery',
+            '_legacy_alankar_mastery',
+            '_legacy_phrase_mastery'
+        )
+        """
+    )
+    objects = {(row[0], row[1]) for row in cursor.fetchall()}
+
+    if ("table", "alankar_mastery") in objects and ("table", "_legacy_alankar_mastery") not in objects:
+        cursor.execute("ALTER TABLE alankar_mastery RENAME TO _legacy_alankar_mastery")
+
+    if ("table", "phrase_mastery") in objects and ("table", "_legacy_phrase_mastery") not in objects:
+        cursor.execute("ALTER TABLE phrase_mastery RENAME TO _legacy_phrase_mastery")
+
+    cursor.execute("DROP VIEW IF EXISTS alankar_mastery")
+    cursor.execute("DROP VIEW IF EXISTS phrase_mastery")
+
+    cursor.execute(
+        """
+        CREATE VIEW IF NOT EXISTS alankar_mastery AS
+        SELECT
+            NULL AS id,
+            user_id,
+            skill_id AS alankar_id,
+            NULL AS highest_level,
+            NULL AS best_tempo,
+            composite_average AS average_score,
+            total_sessions AS total_attempts,
+            is_unlocked AS mastered,
+            successful_sessions
+        FROM skill_progress
+        WHERE skill_type = 'alankar'
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE VIEW IF NOT EXISTS phrase_mastery AS
+        SELECT
+            NULL AS id,
+            user_id,
+            CASE
+                WHEN INSTR(skill_id, ':phrase:') > 0 THEN SUBSTR(skill_id, 1, INSTR(skill_id, ':phrase:') - 1)
+                ELSE skill_id
+            END AS song_id,
+            CASE
+                WHEN INSTR(skill_id, ':phrase:') > 0 THEN CAST(SUBSTR(skill_id, INSTR(skill_id, ':phrase:') + 8) AS INTEGER)
+                ELSE NULL
+            END AS phrase_id,
+            composite_average * 100.0 AS avg_accuracy,
+            NULL AS avg_pitch_error,
+            NULL AS avg_timing_error,
+            total_sessions AS total_attempts,
+            is_unlocked AS mastered,
+            successful_sessions
+        FROM skill_progress
+        WHERE skill_type = 'phrase'
+        """
+    )
 
 
 def init_db(db_name: Optional[str] = None):
@@ -71,39 +136,6 @@ CREATE TABLE IF NOT EXISTS sessions (
     cols = [r[1] for r in cursor.fetchall()]
     if "technique_score" not in cols:
         cursor.execute("ALTER TABLE sessions ADD COLUMN technique_score REAL")
-
-
-
-    cursor.execute("""
-CREATE TABLE IF NOT EXISTS alankar_mastery (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT,
-    alankar_id TEXT,
-    highest_level INTEGER,
-    best_tempo INTEGER,
-    average_score REAL,
-    total_attempts INTEGER,
-    mastered INTEGER,
-    successful_sessions INTEGER DEFAULT 0
-)
-""")
-    
-
-    cursor.execute("""
-CREATE TABLE IF NOT EXISTS phrase_mastery (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT,
-    song_id TEXT,
-    phrase_id INTEGER,
-    avg_accuracy REAL,
-    avg_pitch_error REAL,
-    avg_timing_error REAL,
-    total_attempts INTEGER,
-    mastered INTEGER,
-    successful_sessions INTEGER DEFAULT 0
-)
-""")
-
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS student_progress (
     user_id TEXT PRIMARY KEY,
@@ -120,13 +152,19 @@ CREATE TABLE IF NOT EXISTS student_progress (
 CREATE TABLE IF NOT EXISTS skill_progress (
     user_id TEXT,
     skill_id TEXT,
-    content_id TEXT,
+    skill_type TEXT NOT NULL DEFAULT 'alankar',
     successful_sessions INTEGER DEFAULT 0,
+    total_sessions INTEGER DEFAULT 0,
     last_success_at TEXT,
     composite_average REAL DEFAULT 0.0,
+    recent_weighted_average REAL DEFAULT 0.0,
+    last_composite_score REAL,
+    last_session_at TEXT,
     is_unlocked INTEGER DEFAULT 0,
     unlocked_at TEXT,
-    PRIMARY KEY (user_id, skill_id)
+    PRIMARY KEY (user_id, skill_id),
+    CHECK (NOT (is_unlocked = 1 AND unlocked_at IS NULL)),
+    CHECK (NOT (is_unlocked = 0 AND unlocked_at IS NOT NULL))
     )
 """)
 
@@ -156,7 +194,17 @@ CREATE TABLE IF NOT EXISTS practice_streak (
     user_id TEXT PRIMARY KEY,
     current_streak INTEGER DEFAULT 0,
     longest_streak INTEGER DEFAULT 0,
-    last_practice_date TEXT
+    last_practice_logical_date TEXT,
+    total_practice_days INTEGER DEFAULT 0,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS practice_days (
+    user_id TEXT,
+    logical_date TEXT,
+    PRIMARY KEY (user_id, logical_date)
 )
 """)
 
@@ -179,9 +227,13 @@ CREATE TABLE IF NOT EXISTS practice_streak (
     skill_cols = {r[1] for r in cursor.fetchall()}
     for col_def in [
         "skill_id TEXT",
-        "content_id TEXT",
+        "skill_type TEXT NOT NULL DEFAULT 'alankar'",
+        "total_sessions INTEGER DEFAULT 0",
         "last_success_at TEXT",
         "composite_average REAL DEFAULT 0.0",
+        "recent_weighted_average REAL DEFAULT 0.0",
+        "last_composite_score REAL",
+        "last_session_at TEXT",
         "successful_sessions INTEGER DEFAULT 0",
         "is_unlocked INTEGER DEFAULT 0",
         "unlocked_at TEXT",
@@ -190,12 +242,109 @@ CREATE TABLE IF NOT EXISTS practice_streak (
         if col_name not in skill_cols:
             cursor.execute(f"ALTER TABLE skill_progress ADD COLUMN {col_def}")
 
+    cursor.execute(
+        "UPDATE skill_progress SET skill_type='alankar' WHERE skill_type IS NULL OR TRIM(skill_type) = ''"
+    )
+
+    cursor.execute(
+        "UPDATE skill_progress SET total_sessions=successful_sessions WHERE total_sessions IS NULL OR total_sessions < successful_sessions"
+    )
+
+    cursor.execute(
+        "UPDATE skill_progress SET recent_weighted_average=composite_average WHERE recent_weighted_average IS NULL"
+    )
+
+    _archive_legacy_mastery_structures(cursor)
+
     cursor.execute("PRAGMA table_info(session_hash_registry)")
     hash_cols = {r[1] for r in cursor.fetchall()}
     for col_def in ["skill_id TEXT", "session_id INTEGER"]:
         col_name = col_def.split()[0]
         if col_name not in hash_cols:
             cursor.execute(f"ALTER TABLE session_hash_registry ADD COLUMN {col_def}")
+
+    cursor.execute("PRAGMA table_info(practice_streak)")
+    streak_cols = {r[1] for r in cursor.fetchall()}
+    for col_def in [
+        "last_practice_logical_date TEXT",
+        "total_practice_days INTEGER DEFAULT 0",
+        "updated_at TEXT DEFAULT CURRENT_TIMESTAMP",
+    ]:
+        col_name = col_def.split()[0]
+        if col_name not in streak_cols:
+            cursor.execute(f"ALTER TABLE practice_streak ADD COLUMN {col_def}")
+
+    if "last_practice_date" in streak_cols and "last_practice_logical_date" in streak_cols:
+        cursor.execute(
+            """
+            UPDATE practice_streak
+            SET last_practice_logical_date = COALESCE(last_practice_logical_date, last_practice_date)
+            """
+        )
+
+    cursor.execute(
+        """
+        UPDATE practice_streak
+        SET updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)
+        """
+    )
+
+    cursor.execute(
+        """
+        UPDATE practice_streak
+        SET total_practice_days = CASE
+            WHEN total_practice_days IS NULL OR total_practice_days = 0 THEN
+                CASE WHEN current_streak > 0 THEN current_streak ELSE 0 END
+            ELSE total_practice_days
+        END
+        """
+    )
+
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO skill_progress (
+            user_id, skill_id, skill_type, successful_sessions, total_sessions,
+            composite_average, recent_weighted_average, is_unlocked, unlocked_at,
+            last_success_at, last_session_at
+        )
+        SELECT
+            user_id,
+            alankar_id,
+            'alankar',
+            COALESCE(successful_sessions, 0),
+            COALESCE(total_attempts, 0),
+            COALESCE(average_score, 0.0),
+            COALESCE(average_score, 0.0),
+            CASE WHEN COALESCE(mastered, 0) = 1 THEN 1 ELSE 0 END,
+            CASE WHEN COALESCE(mastered, 0) = 1 THEN CURRENT_TIMESTAMP ELSE NULL END,
+            NULL,
+            NULL
+        FROM alankar_mastery
+        """
+    )
+
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO skill_progress (
+            user_id, skill_id, skill_type, successful_sessions, total_sessions,
+            composite_average, recent_weighted_average, is_unlocked, unlocked_at,
+            last_success_at, last_session_at
+        )
+        SELECT
+            user_id,
+            song_id || ':phrase:' || phrase_id,
+            'phrase',
+            COALESCE(successful_sessions, 0),
+            COALESCE(total_attempts, 0),
+            COALESCE(avg_accuracy, 0.0) / 100.0,
+            COALESCE(avg_accuracy, 0.0) / 100.0,
+            CASE WHEN COALESCE(mastered, 0) = 1 THEN 1 ELSE 0 END,
+            CASE WHEN COALESCE(mastered, 0) = 1 THEN CURRENT_TIMESTAMP ELSE NULL END,
+            NULL,
+            NULL
+        FROM phrase_mastery
+        """
+    )
 
 
 
@@ -279,17 +428,49 @@ def register_session_hash(
 def update_skill_progress(
     user_id: str,
     skill_id: str,
+    skill_type: str,
     composite_score: float,
+    threshold: float,
     session_hash: Optional[str] = None,
-    threshold: float = 0.75,
 ):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("BEGIN IMMEDIATE")
 
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if session_hash:
+        cursor.execute(
+            "SELECT 1 FROM session_hash_registry WHERE session_hash = ? LIMIT 1",
+            (session_hash,),
+        )
+        if cursor.fetchone():
+            cursor.execute(
+                """
+                SELECT successful_sessions, total_sessions, is_unlocked
+                FROM skill_progress
+                WHERE user_id = ? AND skill_id = ?
+                """,
+                (user_id, skill_id),
+            )
+            existing = cursor.fetchone()
+            conn.rollback()
+            conn.close()
+            return {
+                "updated": False,
+                "duplicate": True,
+                "unlocked_now": False,
+                "successful_sessions": existing[0] if existing else 0,
+                "total_sessions": existing[1] if existing else 0,
+                "is_unlocked": bool(existing[2]) if existing else False,
+                "message": "Session already processed",
+            }
+
     cursor.execute(
         """
-        SELECT successful_sessions, last_success_at, composite_average, is_unlocked, unlocked_at
+        SELECT successful_sessions, total_sessions, last_success_at,
+               composite_average, recent_weighted_average,
+               is_unlocked, unlocked_at
         FROM skill_progress
         WHERE user_id = ? AND skill_id = ?
         """,
@@ -298,61 +479,65 @@ def update_skill_progress(
     row = cursor.fetchone()
 
     successful_sessions = row[0] if row else 0
-    last_success_at = row[1] if row else None
-    composite_average = row[2] if row and row[2] is not None else 0.0
-    is_unlocked = bool(row[3]) if row else False
-    unlocked_at = row[4] if row else None
+    total_sessions = row[1] if row else 0
+    last_success_at = row[2] if row else None
+    composite_average = row[3] if row and row[3] is not None else 0.0
+    recent_weighted_average = row[4] if row and row[4] is not None else 0.0
+    is_unlocked = bool(row[5]) if row else False
+    unlocked_at = row[6] if row else None
 
-    if session_hash and session_hash_exists(session_hash):
-        conn.rollback()
-        conn.close()
-        return {
-            "updated": False,
-            "duplicate": True,
-            "unlocked_now": False,
-            "successful_sessions": successful_sessions,
-            "is_unlocked": is_unlocked,
-            "message": "Session already processed",
-        }
+    total_sessions += 1
+    if total_sessions == 1:
+        composite_average = composite_score
+        recent_weighted_average = composite_score
+    else:
+        previous_total = total_sessions - 1
+        composite_average = ((composite_average * previous_total) + composite_score) / total_sessions
+        recent_weighted_average = (recent_weighted_average * 0.7) + (composite_score * 0.3)
 
     updated = False
     unlocked_now = False
     if composite_score >= threshold:
         updated = True
-        previous_count = successful_sessions
         successful_sessions += 1
-        last_success_at = datetime.now().isoformat()
-        if previous_count == 0:
-            composite_average = composite_score
-        else:
-            composite_average = ((composite_average * previous_count) + composite_score) / successful_sessions
+        last_success_at = now_iso
 
         if not is_unlocked and successful_sessions >= 3:
             is_unlocked = True
             unlocked_now = True
-            unlocked_at = datetime.now().isoformat()
+            unlocked_at = now_iso
 
     cursor.execute(
         """
         INSERT INTO skill_progress (
-            user_id, skill_id, content_id, successful_sessions,
-            last_success_at, composite_average, is_unlocked, unlocked_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            user_id, skill_id, skill_type, successful_sessions,
+            total_sessions, composite_average, recent_weighted_average,
+            last_composite_score, last_session_at, last_success_at,
+            is_unlocked, unlocked_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id, skill_id) DO UPDATE SET
+            skill_type=excluded.skill_type,
             successful_sessions=excluded.successful_sessions,
+            total_sessions=excluded.total_sessions,
             last_success_at=excluded.last_success_at,
             composite_average=excluded.composite_average,
+            recent_weighted_average=excluded.recent_weighted_average,
+            last_composite_score=excluded.last_composite_score,
+            last_session_at=excluded.last_session_at,
             is_unlocked=excluded.is_unlocked,
-            unlocked_at=excluded.unlocked_at,
-            content_id=excluded.content_id
+            unlocked_at=excluded.unlocked_at
         """,
         (
             user_id,
             skill_id,
-            skill_id,
+            skill_type,
             successful_sessions,
-            last_success_at,
+            total_sessions,
             composite_average,
+            recent_weighted_average,
+            composite_score,
+            now_iso,
+            last_success_at,
             1 if is_unlocked else 0,
             unlocked_at,
         )
@@ -365,7 +550,7 @@ def update_skill_progress(
                 session_hash, user_id, skill_id, created_at
             ) VALUES (?, ?, ?, ?)
             """,
-            (session_hash, user_id, skill_id, datetime.now().isoformat())
+            (session_hash, user_id, skill_id, now_iso)
         )
 
     conn.commit()
@@ -377,6 +562,9 @@ def update_skill_progress(
         "duplicate": False,
         "unlocked_now": unlocked_now,
         "successful_sessions": successful_sessions,
+        "total_sessions": total_sessions,
+        "composite_average": composite_average,
+        "recent_weighted_average": recent_weighted_average,
         "is_unlocked": is_unlocked,
         "message": message,
     }
@@ -414,9 +602,6 @@ def get_user_timezone(user_id: str) -> int:
 def get_logical_date(user_id: str, utc_timestamp: datetime) -> str:
     offset_minutes = get_user_timezone(user_id)
     local_dt = utc_timestamp + timedelta(minutes=offset_minutes)
-    # Treat early-hours practice as previous logical day (practice-day boundary).
-    if local_dt.hour < 3:
-        local_dt = local_dt - timedelta(days=1)
     return local_dt.date().isoformat()
 
 
@@ -435,48 +620,95 @@ def get_practice_streak(user_id: str) -> dict:
             "user_id": user_id,
             "current_streak": 0,
             "longest_streak": 0,
+            "last_practice_logical_date": None,
             "last_practice_date": None,
+            "total_practice_days": 0,
         }
-    return dict(row)
+    payload = dict(row)
+    payload["last_practice_date"] = payload.get("last_practice_logical_date")
+    payload["total_practice_days"] = int(payload.get("total_practice_days") or 0)
+    return payload
 
 
 def update_practice_streak(user_id: str, current_date: Optional[datetime] = None) -> dict:
-    now_utc = current_date or datetime.utcnow()
-    today = get_logical_date(user_id, now_utc)
+    now_utc = current_date or datetime.now(timezone.utc)
+    logical_date = get_logical_date(user_id, now_utc)
 
-    current = get_practice_streak(user_id)
-    last_practice_date = current["last_practice_date"]
-    current_streak = int(current["current_streak"])
-    longest_streak = int(current["longest_streak"])
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("BEGIN IMMEDIATE")
 
-    if not last_practice_date:
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO practice_days (user_id, logical_date)
+        VALUES (?, ?)
+        """,
+        (user_id, logical_date),
+    )
+    is_new_practice_day = cursor.rowcount > 0
+
+    cursor.execute(
+        """
+        SELECT current_streak, longest_streak, last_practice_logical_date, total_practice_days
+        FROM practice_streak
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    )
+    row = cursor.fetchone()
+
+    current_streak = int(row["current_streak"]) if row else 0
+    longest_streak = int(row["longest_streak"]) if row else 0
+    last_practice_logical_date = row["last_practice_logical_date"] if row else None
+    total_practice_days = int(row["total_practice_days"]) if row else 0
+
+    if not last_practice_logical_date:
         new_streak = 1
     else:
-        last_day = datetime.fromisoformat(last_practice_date).date()
-        today_day = datetime.fromisoformat(today).date()
-        delta_days = (today_day - last_day).days
-
-        if delta_days == 0:
+        delta_days = (
+            datetime.fromisoformat(logical_date).date() -
+            datetime.fromisoformat(last_practice_logical_date).date()
+        ).days
+        if delta_days <= 0:
             new_streak = current_streak
         elif delta_days == 1:
             new_streak = current_streak + 1
         else:
             new_streak = 1
 
-    new_longest = max(longest_streak, new_streak)
+    if not is_new_practice_day and last_practice_logical_date:
+        new_streak = current_streak
+        effective_last_date = last_practice_logical_date
+    else:
+        effective_last_date = logical_date
 
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    new_total_days = total_practice_days + (1 if is_new_practice_day else 0)
+    new_longest = max(longest_streak, new_streak)
+    updated_at = datetime.now(timezone.utc).isoformat()
+
     cursor.execute(
         """
-        INSERT INTO practice_streak (user_id, current_streak, longest_streak, last_practice_date)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO practice_streak (
+            user_id, current_streak, longest_streak,
+            last_practice_logical_date, total_practice_days, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
             current_streak=excluded.current_streak,
             longest_streak=excluded.longest_streak,
-            last_practice_date=excluded.last_practice_date
+            last_practice_logical_date=excluded.last_practice_logical_date,
+            total_practice_days=excluded.total_practice_days,
+            updated_at=excluded.updated_at
         """,
-        (user_id, new_streak, new_longest, today)
+        (
+            user_id,
+            new_streak,
+            new_longest,
+            effective_last_date,
+            new_total_days,
+            updated_at,
+        )
     )
     conn.commit()
     conn.close()
@@ -485,7 +717,10 @@ def update_practice_streak(user_id: str, current_date: Optional[datetime] = None
         "user_id": user_id,
         "current_streak": new_streak,
         "longest_streak": new_longest,
-        "last_practice_date": today,
+        "total_practice_days": new_total_days,
+        "last_practice_logical_date": effective_last_date,
+        "last_practice_date": effective_last_date,
+        "logical_date": logical_date,
     }
 
 
@@ -758,7 +993,11 @@ def is_alankar_mastered(user_id: str, alankar_id: str) -> bool:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT mastered FROM alankar_mastery WHERE user_id=? AND alankar_id=?",
+        """
+        SELECT is_unlocked
+        FROM skill_progress
+        WHERE user_id=? AND skill_id=? AND skill_type='alankar'
+        """,
         (user_id, alankar_id)
     )
     row = cursor.fetchone()
@@ -772,7 +1011,11 @@ def count_mastered_alankars(user_id: str) -> int:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT COUNT(*) FROM alankar_mastery WHERE user_id=? AND mastered=1",
+        """
+        SELECT COUNT(*)
+        FROM skill_progress
+        WHERE user_id=? AND skill_type='alankar' AND is_unlocked=1
+        """,
         (user_id,)
     )
     cnt = cursor.fetchone()[0]
@@ -784,15 +1027,26 @@ def count_mastered_songs(user_id: str) -> int:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT song_id, COUNT(*) as mastered_phrases FROM phrase_mastery WHERE user_id=? AND mastered=1 GROUP BY song_id",
+        """
+        SELECT skill_id
+        FROM skill_progress
+        WHERE user_id=? AND skill_type='phrase' AND is_unlocked=1
+        """,
         (user_id,)
     )
     rows = cursor.fetchall()
     conn.close()
 
     from music.song_loader import load_song
+    mastered_by_song: dict[str, int] = {}
+    for (phrase_skill_id,) in rows:
+        if not isinstance(phrase_skill_id, str) or ":phrase:" not in phrase_skill_id:
+            continue
+        song_id, _ = phrase_skill_id.split(":phrase:", 1)
+        mastered_by_song[song_id] = mastered_by_song.get(song_id, 0) + 1
+
     total = 0
-    for song_id, mastered_phrases in rows:
+    for song_id, mastered_phrases in mastered_by_song.items():
         try:
             song = load_song(f"songs/{song_id}.json")
             if len(song.get("phrases", [])) == mastered_phrases:
@@ -892,213 +1146,6 @@ def get_latest_analytics_snapshot(user_id: str):
 
 
 
-def update_alankar_mastery(
-    user_id: str,
-    alankar_id: str,
-    level_index: int,
-    tempo: int,
-    composite_score: Optional[float] = None,
-    threshold: float = 0.75,
-    analytics: dict | None = None
-):
-    legacy_mode = analytics is None and composite_score is not None
-    if analytics is None and composite_score is not None:
-        analytics = {
-            "indices": {"composite_score": composite_score},
-            "volatility": 0.0,
-        }
-    if analytics is None:
-        return
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, highest_level, best_tempo,
-               average_score, total_attempts,
-               mastered, successful_sessions
-        FROM alankar_mastery
-        WHERE user_id = ? AND alankar_id = ?
-    """, (user_id, alankar_id))
-
-    row = cursor.fetchone()
-
-    # 🔹 Get weighted analytics (Phase 3 integration)
-
-   
-
-    composite_score = analytics["indices"].get("composite_score")
-    if composite_score is None:
-        composite_score = 0.0
-    volatility = analytics["volatility"]
-
-    success = False
-    effective_threshold = 0.90 if legacy_mode else threshold
-    if composite_score >= effective_threshold and volatility < VOLATILITY_THRESHOLD:
-        success = True
-
-    if row:
-        row_id, highest_level, best_tempo, prev_avg, prev_attempts, prev_mastered, prev_success = row
-
-        new_attempts = prev_attempts + 1
-        new_avg = ((prev_avg * prev_attempts) + composite_score) / new_attempts
-        highest_level = max(highest_level, level_index)
-        best_tempo = max(best_tempo, tempo)
-
-        if success:
-            if legacy_mode:
-                prev_success = max(prev_success, 3)
-            else:
-                prev_success += 1
-
-        # Forward-only unlock
-        mastered = prev_mastered
-        if not prev_mastered and prev_success >= 3:
-            mastered = 1
-
-        cursor.execute("""
-            UPDATE alankar_mastery
-            SET highest_level=?,
-                best_tempo=?,
-                average_score=?,
-                total_attempts=?,
-                mastered=?,
-                successful_sessions=?
-            WHERE id=?
-        """, (
-            highest_level,
-            best_tempo,
-            new_avg,
-            new_attempts,
-            mastered,
-            prev_success,
-            row_id
-        ))
-
-    else:
-        success_count = 3 if (success and legacy_mode) else (1 if success else 0)
-        mastered = 1 if success_count >= 3 else 0
-
-        cursor.execute("""
-            INSERT INTO alankar_mastery (
-                user_id,
-                alankar_id,
-                highest_level,
-                best_tempo,
-                average_score,
-                total_attempts,
-                mastered,
-                successful_sessions
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user_id,
-            alankar_id,
-            level_index,
-            tempo,
-            composite_score,
-            1,
-            mastered,
-            success_count
-        ))
-
-    conn.commit()
-    conn.close()
-
-
-
-
-def update_phrase_mastery(
-    user_id: str,
-    song_id: str,
-    phrase_id: int,
-    accuracy: float,
-    pitch_error: float,
-    timing_error: float,
-    analytics: dict | None = None
-):
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, avg_accuracy, avg_pitch_error,
-               avg_timing_error, total_attempts,
-               mastered, successful_sessions
-        FROM phrase_mastery
-        WHERE user_id=? AND song_id=? AND phrase_id=?
-    """, (user_id, song_id, phrase_id))
-
-    row = cursor.fetchone()
-
-    # Phase 3 analytics
-
-    volatility = analytics["volatility"] if analytics else 999
-    success = False
-    if accuracy >= PHRASE_THRESHOLD and volatility < VOLATILITY_THRESHOLD:
-        success = True
-
-    if row:
-        row_id, prev_acc, prev_pitch, prev_timing, prev_attempts, prev_mastered, prev_success = row
-
-        new_attempts = prev_attempts + 1
-        new_avg_accuracy = ((prev_acc * prev_attempts) + accuracy) / new_attempts
-        new_avg_pitch = ((prev_pitch * prev_attempts) + pitch_error) / new_attempts
-        new_avg_timing = ((prev_timing * prev_attempts) + timing_error) / new_attempts
-
-        if success:
-            prev_success += 1
-
-        # Forward-only unlock
-        mastered = prev_mastered
-        if not prev_mastered and prev_success >= 3:
-            mastered = 1
-
-        cursor.execute("""
-            UPDATE phrase_mastery
-            SET avg_accuracy=?,
-                avg_pitch_error=?,
-                avg_timing_error=?,
-                total_attempts=?,
-                mastered=?,
-                successful_sessions=?
-            WHERE id=?
-        """, (
-            new_avg_accuracy,
-            new_avg_pitch,
-            new_avg_timing,
-            new_attempts,
-            mastered,
-            prev_success,
-            row_id
-        ))
-
-    else:
-        success_count = 1 if success else 0
-        mastered = 1 if success_count >= 3 else 0
-
-        cursor.execute("""
-            INSERT INTO phrase_mastery (
-                user_id, song_id, phrase_id,
-                avg_accuracy, avg_pitch_error,
-                avg_timing_error, total_attempts,
-                mastered, successful_sessions
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user_id,
-            song_id,
-            phrase_id,
-            accuracy,
-            pitch_error,
-            timing_error,
-            1,
-            mastered,
-            success_count
-        ))
-
-    conn.commit()
-    conn.close()
-
 def get_weakest_phrase(user_id: str, song_id: str):
 
     conn = sqlite3.connect(DB_NAME)
@@ -1106,20 +1153,26 @@ def get_weakest_phrase(user_id: str, song_id: str):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM phrase_mastery
-        WHERE user_id=? AND song_id=? AND mastered=0
-        ORDER BY avg_accuracy ASC
+        SELECT skill_id, composite_average, total_sessions
+        FROM skill_progress
+        WHERE user_id=?
+          AND skill_type='phrase'
+          AND skill_id LIKE ?
+          AND is_unlocked=0
+        ORDER BY composite_average ASC
         LIMIT 1
-    """, (user_id, song_id))
+    """, (user_id, f"{song_id}:phrase:%"))
 
     row = cursor.fetchone()
     conn.close()
 
     if row:
+        skill_id = row["skill_id"]
+        phrase_id = int(skill_id.rsplit(":phrase:", 1)[1])
         return {
-            "phrase_id": row["phrase_id"],
-            "avg_accuracy": row["avg_accuracy"],
-            "attempts": row["total_attempts"]
+            "phrase_id": phrase_id,
+            "avg_accuracy": (row["composite_average"] or 0.0) * 100.0,
+            "attempts": row["total_sessions"]
         }
 
     return None    
@@ -1135,9 +1188,13 @@ def is_song_mastered(user_id: str, song_id: str, total_phrases: int):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT COUNT(*) FROM phrase_mastery
-        WHERE user_id=? AND song_id=? AND mastered=1
-    """, (user_id, song_id))
+        SELECT COUNT(*)
+        FROM skill_progress
+        WHERE user_id=?
+          AND skill_type='phrase'
+          AND skill_id LIKE ?
+          AND is_unlocked=1
+    """, (user_id, f"{song_id}:phrase:%"))
 
     mastered_count = cursor.fetchone()[0]
     conn.close()

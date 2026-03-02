@@ -4,17 +4,21 @@ import numpy as np
 import logging
 from app.services.adaptive_engine import build_snapshot, generate_adaptive_plan
 from app.services.analytics_engine import compute_analytics
-from app.services.analytics_engine import compute_analytics
 from app.services.llm.feedback_llm import generate_guru_feedback, generate_normal_feedback
 from music.song_loader import load_song
-from database.db import save_session, update_alankar_mastery, update_phrase_mastery, is_song_mastered,save_analytics_snapshot
+from database.db import (
+    save_session,
+    is_song_mastered,
+    save_analytics_snapshot,
+    update_skill_progress,
+    compute_session_hash,
+)
 from app.services.alankar_engine import compute_alankar_level
 from app.services.song_engine import generate_song_adaptive_plan
 from app.services.practice_endpoint.audio_core import process_audio_core
 from audio.techniques import compare_with_reference
 from app.services.curriculum_service import evaluate_curriculum_progress
 from app.services.llm.feedback_llm import _normalize_llm_feedback
-from app.services.analytics_engine import compute_analytics
 
 
 logger = logging.getLogger(__name__)
@@ -147,13 +151,35 @@ async def evaluate_alankar(
         plateau_flag=plateau_flag
     )
 
-    # Update alankar mastery
-    update_alankar_mastery(
+    # Update canonical skill progression (alankar)
+    alankar_hash = compute_session_hash(
+        user_id,
+        {
+            "skill_type": "alankar",
+            "skill_id": song["id"],
+            "phrase_index": phrase_index,
+            "reference": reference,
+        },
+        {
+            "played": played,
+            "result": {
+                "note_accuracy": result.get("note_accuracy"),
+                "avg_pitch_error_cents": result.get("avg_pitch_error_cents"),
+                "avg_timing_error_sec": result.get("avg_timing_error_sec"),
+                "composite_score": result.get("composite_score"),
+                "technique_score": result.get("technique_score"),
+            },
+        },
+        skill_id=f"alankar:{song['id']}"
+    )
+
+    update_skill_progress(
         user_id=user_id,
-        alankar_id=song["id"],
-        level_index=level_info["level_index"],
-        tempo=level_info["recommended_tempo"],
-        analytics=compute_analytics(user_id)
+        skill_id=song["id"],
+        skill_type="alankar",
+        composite_score=float(result.get("composite_score", 0.0)),
+        threshold=0.75,
+        session_hash=alankar_hash,
     )
 
     # Generate adaptive plan
@@ -324,15 +350,40 @@ async def evaluate_song(
     # Save session
     save_session(user_id=user_id, reference=reference, played=played, result=result)
 
-    # Song-specific: Update phrase mastery
-    update_phrase_mastery(
+    # Song-specific: Update canonical phrase progression
+    song_analytics = compute_analytics(user_id)
+    phrase_threshold = 0.90
+    if song_analytics and song_analytics.get("volatility", 999) >= 8:
+        phrase_threshold = 1.1
+
+    phrase_skill_id = f"{song['id']}:phrase:{phrase_index}"
+    phrase_hash = compute_session_hash(
+        user_id,
+        {
+            "skill_type": "phrase",
+            "skill_id": phrase_skill_id,
+            "reference": reference,
+        },
+        {
+            "played": played,
+            "result": {
+                "note_accuracy": result.get("note_accuracy"),
+                "avg_pitch_error_cents": result.get("avg_pitch_error_cents"),
+                "avg_timing_error_sec": result.get("avg_timing_error_sec"),
+                "composite_score": result.get("composite_score"),
+                "technique_score": result.get("technique_score"),
+            },
+        },
+        skill_id=f"phrase:{phrase_skill_id}"
+    )
+
+    update_skill_progress(
         user_id=user_id,
-        song_id=song["id"],
-        phrase_id=phrase_index,
-        accuracy=result["note_accuracy"],
-        pitch_error=result["avg_pitch_error_cents"],
-        timing_error=result["avg_timing_error_sec"],
-        analytics=compute_analytics(user_id)  # Pass analytics for potential mastery curve adjustments
+        skill_id=phrase_skill_id,
+        skill_type="phrase",
+        composite_score=max(0.0, min(1.0, float(result.get("note_accuracy", 0.0)) / 100.0)),
+        threshold=phrase_threshold,
+        session_hash=phrase_hash,
     )
 
     # Check if full song is unlocked

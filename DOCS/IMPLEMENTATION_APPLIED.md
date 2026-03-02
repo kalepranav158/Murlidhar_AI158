@@ -11,16 +11,17 @@ This document replaces older pre-hardening notes and reflects what is currently 
 Implemented:
 - `sessions` storage with composite and technique metrics.
 - `analytics_snapshots` storage with rolling prune logic (max 30 per user).
-- `alankar_mastery` and `phrase_mastery` tables with:
-  - `successful_sessions` counter
-  - forward-only unlock behavior
 - `session_hash_registry` table with duplicate prevention in `save_session(...)`.
-- `skill_progress` table scaffold exists.
-- Legacy compatibility helpers restored for existing edge-case tests:
-  - `update_skill_progress(...)`
-  - session hash registry helpers
-  - timezone and streak helpers
-  - analytics pruning helper
+- canonical `skill_progress` model with:
+  - `skill_type`-aware progression
+  - `successful_sessions` and `total_sessions`
+  - `composite_average` and `recent_weighted_average`
+  - `last_composite_score`, `last_session_at`, unlock timestamps
+  - DB-level unlock consistency checks
+- streak domain implemented:
+  - `user_profile` (timezone offset)
+  - `practice_streak` (current/longest/total/logical date)
+  - `practice_days` (idempotent daily dedupe)
 - Session hash calculation in `save_session(...)` updated to include result payload fields to avoid false duplicate collapse across distinct attempts.
 
 ### 2) Analytics Configuration (`app/services/analytics_config.py`)
@@ -58,18 +59,17 @@ Implemented:
 
 ## Open Gaps
 
-- Timezone-aware streak subsystem is not implemented yet.
-- Canonical progression architecture is still split between compatibility paths and newer flow.
 - Debug endpoint enable/disable by environment is not yet in place.
+- Optional retirement of legacy physical tables (`alankar_mastery`, `phrase_mastery`) after migration grace period.
 
 ## Validation Result
 
-- Full test suite run completed in conda env `gokul`.
-- Result: `23 passed`.
+- Targeted canonical regression run completed.
+- Result: `16 passed` (`test_edge_cases.py`, `test_curriculum.py`).
 
 ## Next Execution Plan
 
-1. Add first-class streak domain model and timezone-safe progression APIs.
-2. Consolidate unlock source-of-truth around `skill_progress` (reduce compatibility branching).
-3. Add env-gated debug routing and production defaults.
+1. Add env-gated debug routing and production defaults.
+2. Decide retention/decommission plan for old mastery tables.
+3. Expand integration tests for route-level progression behavior.
 4. Keep CI/local test parity with conda environment lock-step.

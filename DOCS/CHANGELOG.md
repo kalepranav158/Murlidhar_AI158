@@ -1,14 +1,20 @@
 # CHANGELOG
 
 ## [Unreleased]
-- Documentation audit and synchronization with actual codebase state
-- Added explicit status reporting and upcoming implementation plan
-- Marked historical edge-case architecture docs as target-state references
-- Restored compatibility APIs for legacy edge-case tests in database layer
-- Fixed test collection hang by guarding interactive pitch detector execution
-- Stabilized curriculum recommendation priority for newly unlocked content
-- Tuned meend detector threshold for micro-jitter robustness
-- Verified full suite pass in conda env `gokul` (`23 passed`)
+- Canonicalized progression to `skill_progress` single update path (`update_skill_progress`)
+- Removed legacy progression wrappers (`update_alankar_mastery`, `update_phrase_mastery`)
+- Wired `practice_service` directly to canonical progression with deterministic per-skill session hashes
+- Implemented timezone-safe, idempotent streak domain using `practice_days` logical-date dedupe
+- Updated debug endpoints to read canonical `skill_progress` records
+- Gated debug router mounting with `DEBUG_ENDPOINTS` (`false` by default)
+- Archived legacy mastery tables to `_legacy_alankar_mastery` and `_legacy_phrase_mastery` with read-only compatibility views
+- Added backend freeze validation suite in `test_backend_freeze.py` (integration chain, duplicate stress, integrity, streak boundaries, analytics window, load simulation, constraints)
+- Synced architecture and reference docs to new canonical model
+- Updated docs/test references to current targeted canonical suite (`16 passed`)
+
+## v1 Backend Freeze
+Date: 2026-03-02
+All freeze checklist items completed.
 
 ## 2026-03-02
 - Replaced stale implementation claims with verified module-level status

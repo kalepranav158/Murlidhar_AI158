@@ -1,15 +1,15 @@
-# 🎯 EDGE CASE ARCHITECTURE - Target State + Implemented Patterns
+# 🎯 EDGE CASE ARCHITECTURE - Implemented + Reference Patterns
 
 **Date:** February 27, 2026 (original design), reviewed March 2, 2026  
-**Status:** ⚠️ Mixed (partially implemented in current codebase)
+**Status:** ✅ Core patterns implemented in current codebase
 
-> Note: This document contains the intended final architecture and implementation patterns. For the verified current project state, see `IMPLEMENTATION_SUMMARY.md` and `IMPLEMENTATION_APPLIED.md`.
+> Note: This document is synchronized with the current codebase and also includes reference-style pseudo-code patterns for explanation. For concise status and rollout notes, see `IMPLEMENTATION_SUMMARY.md` and `IMPLEMENTATION_APPLIED.md`.
 
 ---
 
 ## Executive Summary
 
-This document describes the target architecture and implementation patterns for edge-case resilience in the Hindustani flute tutoring system. Some sections are fully represented in the current codebase, while others remain target-state guidance.
+This document describes implementation patterns for edge-case resilience in the Hindustani flute tutoring system, aligned with the canonical `skill_progress` and logical-date streak model.
 
 Use `IMPLEMENTATION_SUMMARY.md` for the verified current status and test outcomes.
 
@@ -33,9 +33,14 @@ Use `IMPLEMENTATION_SUMMARY.md` for the verified current status and test outcome
 CREATE TABLE skill_progress (
     user_id TEXT NOT NULL,
     skill_id TEXT NOT NULL,
+    skill_type TEXT NOT NULL,
     successful_sessions INTEGER DEFAULT 0,
+    total_sessions INTEGER DEFAULT 0,
     last_success_at TEXT,
     composite_average REAL DEFAULT 0.0,
+    recent_weighted_average REAL DEFAULT 0.0,
+    last_composite_score REAL,
+    last_session_at TEXT,
     is_unlocked BOOLEAN DEFAULT 0,
     unlocked_at TEXT,
     PRIMARY KEY (user_id, skill_id),
@@ -58,7 +63,9 @@ CREATE TABLE session_hash_registry (
 def update_skill_progress(
     user_id: str,
     skill_id: str,
+    skill_type: str,
     composite_score: float,
+    threshold: float,
     session_hash: str = None,
 ) -> dict:
     """Idempotent + Transactional mastery update."""
@@ -73,7 +80,7 @@ def update_skill_progress(
         progress = get_progress(user_id, skill_id)
         
         # 3. Update ONLY on success (never on failure)
-        if composite_score >= THRESHOLD:
+        if composite_score >= threshold:
             progress.successful_sessions += 1
             progress.last_success_at = now()
         
@@ -95,16 +102,14 @@ def update_skill_progress(
 
 ```python
 # From practice endpoint
-session_hash = compute_session_hash(
-    user_id=user_id,
-    skill_id=skill_id,
-    audio_checksum=sha256(audio_data)
-)
+session_hash = compute_session_hash(user_id, reference_payload, played_payload, skill_id=skill_id)
 
 result = update_skill_progress(
     user_id, 
     skill_id, 
+    skill_type="alankar",
     composite_score=0.82,
+    threshold=0.75,
     session_hash=session_hash
 )
 
@@ -153,11 +158,9 @@ def verify_unlock_integrity(user_id: str, skill_id: str) -> dict:
     }
 ```
 
-**API Endpoint:**
-```
-GET /debug/unlock-check/{user_id}/{skill_id}
-→ Returns integrity analysis
-```
+**Programmatic Check:**
+- Use `verify_unlock_integrity(user_id, skill_id)` for integrity diagnostics.
+- Debug router exposes skill progress records (`/debug/alankar/...`, `/debug/phrase/...`).
 
 ### Test Coverage
 - ✅ Unlock stays true after 100 successive failures
@@ -209,9 +212,14 @@ def get_logical_date(user_id: str, utc_timestamp: datetime) -> str:
 **Updated Streak Logic:**
 ```python
 def update_practice_streak(user_id: str, current_date=None):
-    """Timezone-aware streak calculation."""
+    """Timezone-aware, idempotent streak calculation."""
     
-    today = get_logical_date(user_id, utcnow())
+    today = get_logical_date(user_id, utc_now())
+
+    # Deduplicate same logical day
+    inserted = insert_practice_day_if_new(user_id, today)
+    if not inserted:
+        return existing_streak_state()
     
     progress = get_streak(user_id)
     last_day = parse(progress.last_practice_date).date()
@@ -478,16 +486,16 @@ For backend integrity verification:
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /debug/progress/{user}/{skill}` | View mastery progress state |
-| `GET /debug/analytics/{user}/{skill}` | View analytics window (last 30) |
-| `GET /debug/streak/{user}` | View streak + timezone settings |
-| `GET /debug/unlock-check/{user}/{skill}` | Verify unlock integrity |
-| `GET /debug/sessions/{user}/{skill}` | View recent sessions |
+| `GET /debug/alankar/{user}/{alankar}` | View alankar skill progress row |
+| `GET /debug/phrase/{user}/{song}/{phrase}` | View phrase skill progress row |
+| `GET /debug/analytics/{user}?limit=30` | View analytics window |
+| `GET /debug/sessions/{user}?limit=10` | View recent sessions |
+| `GET /debug/student/{user}` | View curriculum profile state |
 
 **Example Usage:**
 ```bash
-# Check mastery state
-curl http://localhost:8000/debug/progress/user1/skill_1
+# Check alankar progression state
+curl http://localhost:8000/debug/alankar/user1/alankar_1
 # Response:
 # {
 #   "is_unlocked": true,
@@ -495,12 +503,10 @@ curl http://localhost:8000/debug/progress/user1/skill_1
 #   "unlocked_at": "2024-02-27T15:30:00"
 # }
 
-# Verify unlock integrity
-curl http://localhost:8000/debug/unlock-check/user1/skill_1
+# Check phrase progression state
+curl http://localhost:8000/debug/phrase/user1/song_1/0
 # Response:
 # {
-#   "valid": true,
-#   "issues": [],
 #   "is_unlocked": true
 # }
 ```
@@ -523,12 +529,13 @@ Set `DEBUG_ENDPOINTS=false` to disable in production.
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
-| `skill_progress` | Mastery state tracking | user_id, skill_id, successful_sessions, is_unlocked |
+| `skill_progress` | Canonical progression state tracking | user_id, skill_id, skill_type, successful_sessions, total_sessions, is_unlocked |
 | `session_hash_registry` | Deduplication | session_hash, user_id, skill_id |
-| `analytics_snapshots` | Performance metrics (rolling window) | user_id, skill_id, composite_score, created_at |
-| `practice_streak` | User practice streaks | user_id, current_streak, last_practice_date |
+| `analytics_snapshots` | Performance metrics (rolling window) | user_id, skill_id, composite_score, timestamp |
+| `practice_streak` | User practice streaks | user_id, current_streak, longest_streak, last_practice_logical_date |
+| `practice_days` | Logical-day idempotency | user_id, logical_date |
 | `user_profile` | User settings | user_id, timezone_offset_minutes |
-| `sessions` | Session details | user_id, skill_id, session_hash, composite_score |
+| `sessions` | Session details | user_id, timestamp, composite_score, technique_score |
 
 ### Constraints
 
@@ -540,11 +547,11 @@ Set `DEBUG_ENDPOINTS=false` to disable in production.
 
 ## ✅ Test Coverage
 
-**Comprehensive test suite:** `tests/test_edge_cases.py`
+**Comprehensive test suites:** `test_edge_cases.py`, `test_curriculum.py`
 
 Run tests:
 ```bash
-pytest tests/test_edge_cases.py -v
+python -m pytest -q test_edge_cases.py test_curriculum.py
 ```
 
 **Coverage Summary:**
@@ -567,12 +574,12 @@ pytest tests/test_edge_cases.py -v
 
 Before moving to frontend:
 
-- [ ] Run full test suite: `pytest tests/test_edge_cases.py -v`
+- [ ] Run targeted regression suite: `python -m pytest -q test_edge_cases.py test_curriculum.py`
 - [ ] Verify database migrations successful
 - [ ] Set `DEBUG_ENDPOINTS=false` in production
 - [ ] Configure user timezone offset on first login
 - [ ] Test idempotency: submit same session twice, verify duplicate rejection
-- [ ] Test unlock integrity: query `/debug/unlock-check/{user}/{skill}`
+- [ ] Test unlock integrity: run `verify_unlock_integrity(user_id, skill_id)` in backend checks
 - [ ] Verify analytics pruning: check snapshot counts stable at 30
 
 ---

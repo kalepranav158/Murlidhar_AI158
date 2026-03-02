@@ -1,306 +1,209 @@
-PART 1 — Final Unified skill_progress Canonical Model
+✅ PHASE 1 — PRODUCTION HARDENING
 
-This replaces:
+These are mandatory before freeze.
+
+1️⃣ Gate Debug Endpoints
+Current State
+
+Debug routes always mounted.
+
+Required Fix
+
+In app/main.py:
+
+import os
+
+DEBUG_ENDPOINTS_ENABLED = os.getenv("DEBUG_ENDPOINTS", "false").lower() == "true"
+
+if DEBUG_ENDPOINTS_ENABLED:
+    app.include_router(debug.router)
+Freeze Criteria
+
+DEBUG_ENDPOINTS=false in production
+
+Verified 404 on /debug/... in prod mode
+
+2️⃣ Lock Composite Config Validation
+
+Ensure this exists in analytics_config.py:
+
+assert abs(sum(COMPOSITE_CONFIG.values()) - 1.0) < 1e-6
+Freeze Criteria
+
+Config weights validated at startup
+
+App crashes if invalid weights
+
+3️⃣ Remove or Archive Legacy Mastery Tables
+
+You mentioned:
 
 alankar_mastery
 
 phrase_mastery
 
-Compatibility branching
+Choose One:
 
-Split unlock logic
+Hard delete migration
+OR
 
-Everything becomes one progression engine.
+Rename to _legacy_* and block writes
 
-🎯 Design Goal
+Freeze Criteria
 
-Single source of truth for:
+Only skill_progress is authoritative
 
-Unlock state
+✅ PHASE 2 — SYSTEM CONSISTENCY TESTS
 
-Successful session counter
+These verify entire flow, not modules.
 
-Composite trend
+4️⃣ Add One Full Integration Test
 
-Unlock timestamp
+Test Flow:
 
-Last success time
+submit practice
+→ save_session
+→ update_skill_progress
+→ unlock triggered
+→ curriculum updated
+→ streak updated
+→ analytics snapshot saved
+Freeze Criteria
 
-Skill type awareness
+Single test verifies entire chain
 
-No branching per content type.
+Passes locally
 
-🧠 Core Principle
+5️⃣ Duplicate Submission Stress Test
 
-A "skill" is any unlockable unit:
+Test:
 
-Alankar
+Submit same session twice
 
-Song phrase
+Expect:
 
-Full song
+First: saved
 
-Future gamified drill
+Second: duplicate_rejected
 
-Advanced technique module
+successful_sessions not incremented
 
-Everything becomes:
+Freeze Criteria
 
-(user_id, skill_id) → progression state
-🗄 Canonical Table: skill_progress
-CREATE TABLE skill_progress (
-    user_id TEXT NOT NULL,
-    skill_id TEXT NOT NULL,
-    skill_type TEXT NOT NULL,   -- "alankar" | "phrase" | "song" | "technique"
+Idempotency verified
 
-    successful_sessions INTEGER DEFAULT 0,
-    total_sessions INTEGER DEFAULT 0,
+✅ PHASE 3 — DATA INTEGRITY VALIDATION
 
-    composite_average REAL DEFAULT 0.0,
-    recent_weighted_average REAL DEFAULT 0.0,
+These ensure long-term stability.
 
-    last_composite_score REAL,
-    last_session_at TEXT,
-    last_success_at TEXT,
+6️⃣ Unlock Integrity Audit Script
 
-    is_unlocked BOOLEAN DEFAULT 0,
-    unlocked_at TEXT,
+Run for all users:
 
-    PRIMARY KEY (user_id, skill_id),
+verify_unlock_integrity(user_id, skill_id)
+Freeze Criteria
 
-    CHECK (NOT (is_unlocked = 1 AND unlocked_at IS NULL)),
-    CHECK (NOT (is_unlocked = 0 AND unlocked_at IS NOT NULL))
-);
-🔑 Why This Design Is Correct
-1️⃣ Skill-Type Agnostic
+No violation
 
-No separate mastery tables.
-No branching logic.
-Curriculum engine queries by skill_type.
+No unlocked skill with <3 successful sessions
 
-2️⃣ Forward-Only Unlock Built-In
+7️⃣ Analytics Window Check
 
-Unlock rule:
+Query:
 
-if successful_sessions >= 3 and not is_unlocked:
-    is_unlocked = True
-    unlocked_at = now()
+SELECT COUNT(*) FROM analytics_snapshots WHERE user_id=...
+Freeze Criteria
 
-Never reversed.
-Constraint enforced at DB level.
+Max 30 per skill
 
-3️⃣ Analytics Integrated
+Oldest pruned first
 
-Instead of computing composite history repeatedly:
+8️⃣ Streak Boundary Simulation
 
-Store rolling weighted average.
+Simulate:
 
-Store last composite.
+Same day double submit
 
-Store success count.
+Next day increment
 
-This allows:
+2-day gap reset
 
-Quick difficulty recommendation.
+Freeze Criteria
 
-Trend-based gating.
+Correct streak behavior
 
-Future AI-driven adaptation.
+✅ PHASE 4 — PERFORMANCE SANITY
 
-🧩 Canonical Update API
-def update_skill_progress(
-    user_id: str,
-    skill_id: str,
-    skill_type: str,
-    composite_score: float,
-    threshold: float,
-    session_hash: str
-) -> dict:
-Update Flow
+Not optimization — sanity.
 
-Deduplicate via session_hash
+9️⃣ Load Simulation (Basic)
 
-Increment total_sessions
+Simulate:
 
-If composite >= threshold:
+20 consecutive sessions
 
-successful_sessions += 1
+Verify:
 
-last_success_at = now()
+No DB lock errors
 
-Update rolling weighted average
+No duplicate increments
 
-If successful_sessions >= 3 → unlock
+No unlock regression
 
-Save state atomically
+🔟 DB Constraint Verification
 
-No branching.
-No special case per content.
+Confirm constraints exist:
 
-🧠 Curriculum Engine After Refactor
+unlock timestamp check
 
-Instead of:
+session_hash uniqueness
 
-get_alankar_mastery(...)
-get_phrase_mastery(...)
+composite_score bounds (if defined)
 
-It becomes:
+✅ PHASE 5 — DOCUMENTATION FREEZE
 
-SELECT * FROM skill_progress
-WHERE user_id = ?
-AND skill_type = 'alankar'
+Lock these files:
 
-Cleaner.
-Scalable.
-Future-proof.
+SYSTEM_CORE.md
 
-🚀 Migration Plan
+ARCHITECTURE.md
 
-Create canonical skill_progress
+IMPLEMENTATION_SUMMARY.md
 
-Migrate existing mastery rows into it
-
-Make all updates go through canonical function
-
-Deprecate legacy update functions
-
-Remove compatibility branching
-
-This eliminates 80% of your progression technical debt.
-
-PART 2 — Clean Streak Domain Model
-
-Now we design streak properly — not helper-level.
-
-🎯 Design Goal
-
-Timezone-safe
-
-Idempotent per logical day
-
-No double increment
-
-No server midnight issues
-
-Offset-adjustable
-
-Travel-safe
-
-🗄 Tables
-1️⃣ user_profile
-CREATE TABLE user_profile (
-    user_id TEXT PRIMARY KEY,
-    timezone_offset_minutes INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-2️⃣ practice_streak
-CREATE TABLE practice_streak (
-    user_id TEXT PRIMARY KEY,
-
-    current_streak INTEGER DEFAULT 0,
-    longest_streak INTEGER DEFAULT 0,
-
-    last_practice_logical_date TEXT,
-    total_practice_days INTEGER DEFAULT 0,
-
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-🧠 Core Concept
-
-We NEVER use server date directly.
-
-We use:
-
-logical_date = utc_now + user_timezone_offset
-
-Everything is computed on logical_date.
-
-🔁 Canonical Update Function
-def update_practice_streak(user_id: str) -> dict:
-Flow:
-
-Compute logical_date
-
-Fetch last_practice_logical_date
-
-Calculate delta_days
-
-If:
-
-delta == 0 → no change
-
-delta == 1 → increment streak
-
-delta > 1 → reset to 1
-
-no previous record → set to 1
-
-Update longest_streak if needed
-
-Save atomic
-
-🛡 Idempotency Guarantee
-
-If same user submits 3 sessions same day:
-
-delta = 0
-Streak unchanged.
-
-No double increment possible.
-
-📦 Optional Enhancement (Future-Proof)
+CHANGELOG.md
 
 Add:
 
-CREATE TABLE practice_days (
-    user_id TEXT,
-    logical_date TEXT,
-    PRIMARY KEY (user_id, logical_date)
-);
+## v1 Backend Freeze
+Date:
+All freeze checklist items completed.
+🎯 BACKEND v1 FREEZE CRITERIA SUMMARY
 
-Then:
+System must satisfy:
 
-Insert logical_date
+Domain	Required State
+Evaluation	Deterministic
+Technique	Compared vs expected
+Composite	Configurable, validated
+Mastery	3-session threshold enforced
+Unlock	Forward-only immutable
+Streak	Timezone safe
+Analytics	Rolling window capped
+Duplicates	Idempotent
+Debug	Gated by env
+Tests	Integration test passes
+🧠 AFTER FREEZE — WHAT YOU DO NOT TOUCH
 
-If conflict → already practiced
+Once frozen:
 
-Streak increments only when new row inserted
+Do not change composite weights casually
 
-This gives perfect dedupe.
+Do not alter unlock threshold
 
-Final Architecture After Both Refactors
+Do not alter streak logic
 
-You will have:
+Do not change rolling window size
 
-Progression Layer
-skill_progress (canonical)
-Session Layer
-sessions
-session_hash_registry
-Analytics Layer
-analytics_snapshots
-Streak Layer
-user_profile
-practice_streak
-practice_days (optional)
-Curriculum Layer
+Do not refactor skill_progress schema
 
-Driven entirely from skill_progress
-
-Strategic Outcome
-
-After these two designs:
-
-✔ No duplicate mastery paths
-✔ No branching per skill type
-✔ No streak edge-case bugs
-✔ No timezone ambiguity
-✔ Fully normalized progression domain
-✔ Clean separation of concerns
-
-What You Become After This
-
-Not a project.
-
-A platform.
+Only additive changes allowed.
