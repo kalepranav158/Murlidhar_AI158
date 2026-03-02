@@ -17,10 +17,10 @@ import pytest
 import sqlite3
 import os
 import tempfile
+import uuid
 from datetime import datetime, timedelta
 from database.db import (
     init_db,
-    DB_NAME,
     update_skill_progress,
     compute_session_hash,
     session_hash_exists,
@@ -47,17 +47,20 @@ from app.services.analytics_config import (
 
 import database.db as db
 
-TEST_DB = ":memory:"
-db.DB_NAME = TEST_DB
-
 @pytest.fixture(autouse=True)
 def setup_test_db():
-    db.init_db(TEST_DB)
+    test_db = f"test_edge_cases_{uuid.uuid4().hex}.db"
+    db.DB_NAME = test_db
+    db.init_db(test_db)
     yield
+    try:
+        os.remove(test_db)
+    except OSError:
+        pass
 
 def get_skill_progress(user_id: str, skill_id: str) -> dict:
     """Helper: Get current skill progress state."""
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         """SELECT successful_sessions, last_success_at, composite_average, 
@@ -285,7 +288,7 @@ def test_rolling_window_capped_at_30():
     user_id = "test_user_6"
     skill_id = "skill_6"
     
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     cursor = conn.cursor()
     
     # Insert 50 snapshots
@@ -301,7 +304,7 @@ def test_rolling_window_capped_at_30():
     conn.close()
     
     # Verify initial count
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT COUNT(*) FROM analytics_snapshots WHERE user_id = ? AND skill_id = ?",
@@ -315,7 +318,7 @@ def test_rolling_window_capped_at_30():
     prune_analytics_window(user_id, skill_id, max_window=30)
     
     # Verify final count
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT COUNT(*) FROM analytics_snapshots WHERE user_id = ? AND skill_id = ?",
@@ -424,7 +427,7 @@ def test_unlock_integrity_violation_detection():
     skill_id = "skill_10"
     
     # Manually create anomalous state
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db.DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         """INSERT INTO skill_progress 

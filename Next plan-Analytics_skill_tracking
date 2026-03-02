@@ -1,236 +1,306 @@
-🏗 1️⃣ CURRICULUM STRUCTURE MODEL
+PART 1 — Final Unified skill_progress Canonical Model
 
-We divide learning into:
+This replaces:
 
-Level 1 – Beginner
+alankar_mastery
 
-Basic Alankars
+phrase_mastery
 
-No strict technique enforcement
+Compatibility branching
 
-Focus: note accuracy + rhythm
+Split unlock logic
 
-Level 2 – Intermediate
+Everything becomes one progression engine.
 
-Advanced Alankars
+🎯 Design Goal
 
-Basic Songs
+Single source of truth for:
 
-Meend required
+Unlock state
 
-Rhythm threshold stricter
+Successful session counter
 
-Level 3 – Advanced
+Composite trend
 
-Full Songs
+Unlock timestamp
 
-Gamak required
+Last success time
 
-Expressive precision enforced
+Skill type awareness
 
-🗂 2️⃣ CONTENT STRUCTURE DESIGN
+No branching per content type.
 
-Each Alankar / Song JSON should include:
+🧠 Core Principle
 
-{
-  "id": "alankar_3",
-  "level": "beginner",
-  "type": "alankar",
-  "required_accuracy": 80,
-  "required_rhythm_index": 0.6,
-  "required_technique_score": 0.0,
-  "unlock_next": "alankar_4"
-}
+A "skill" is any unlockable unit:
 
-For songs:
+Alankar
 
-{
-  "id": "song_1",
-  "level": "intermediate",
-  "required_accuracy": 85,
-  "required_rhythm_index": 0.7,
-  "required_technique_score": 0.6,
-  "required_composite_score": 0.7
-}
+Song phrase
 
-Curriculum becomes metadata-driven.
+Full song
 
-🧠 3️⃣ STUDENT PROFILE MODEL
+Future gamified drill
 
-Create persistent student state:
+Advanced technique module
 
-{
-  "current_level": "beginner",
-  "unlocked_content": ["alankar_1", "alankar_2"],
-  "mastered_content": ["alankar_1"],
-  "skill_snapshot": {
-    "accuracy": 0.82,
-    "rhythm_index": 0.68,
-    "technique_score": 0.55,
-    "composite_score": 0.73
-  }
-}
+Everything becomes:
 
-Store this in DB.
+(user_id, skill_id) → progression state
+🗄 Canonical Table: skill_progress
+CREATE TABLE skill_progress (
+    user_id TEXT NOT NULL,
+    skill_id TEXT NOT NULL,
+    skill_type TEXT NOT NULL,   -- "alankar" | "phrase" | "song" | "technique"
 
-⚙️ 4️⃣ CURRICULUM DECISION ENGINE
+    successful_sessions INTEGER DEFAULT 0,
+    total_sessions INTEGER DEFAULT 0,
 
-Create function:
+    composite_average REAL DEFAULT 0.0,
+    recent_weighted_average REAL DEFAULT 0.0,
 
-def evaluate_curriculum_progress(user_id):
+    last_composite_score REAL,
+    last_session_at TEXT,
+    last_success_at TEXT,
 
-It will:
+    is_unlocked BOOLEAN DEFAULT 0,
+    unlocked_at TEXT,
 
-Fetch analytics
+    PRIMARY KEY (user_id, skill_id),
 
-Fetch student profile
+    CHECK (NOT (is_unlocked = 1 AND unlocked_at IS NULL)),
+    CHECK (NOT (is_unlocked = 0 AND unlocked_at IS NOT NULL))
+);
+🔑 Why This Design Is Correct
+1️⃣ Skill-Type Agnostic
 
-Check mastery conditions
+No separate mastery tables.
+No branching logic.
+Curriculum engine queries by skill_type.
 
-Unlock next content if thresholds met
+2️⃣ Forward-Only Unlock Built-In
 
-Upgrade level if needed
+Unlock rule:
 
-📊 5️⃣ MASTERY RULES
+if successful_sessions >= 3 and not is_unlocked:
+    is_unlocked = True
+    unlocked_at = now()
 
-Define mastery as:
+Never reversed.
+Constraint enforced at DB level.
 
-Accuracy ≥ required_accuracy
-Rhythm index ≥ required_rhythm
-Technique score ≥ required_technique
-Composite ≥ required_composite
-AND
-Consistency stable (low volatility)
+3️⃣ Analytics Integrated
 
-Also require:
+Instead of computing composite history repeatedly:
 
-Minimum 3 successful sessions above threshold.
+Store rolling weighted average.
 
-This prevents accidental unlock.
+Store last composite.
 
-🧠 6️⃣ LEVEL PROGRESSION RULE
+Store success count.
 
-Beginner → Intermediate when:
+This allows:
 
-Composite score ≥ 0.75
+Quick difficulty recommendation.
 
-Rhythm index ≥ 0.7
+Trend-based gating.
 
-Technique score ≥ 0.6
+Future AI-driven adaptation.
 
-At least 5 alankars mastered
+🧩 Canonical Update API
+def update_skill_progress(
+    user_id: str,
+    skill_id: str,
+    skill_type: str,
+    composite_score: float,
+    threshold: float,
+    session_hash: str
+) -> dict:
+Update Flow
 
-Intermediate → Advanced when:
+Deduplicate via session_hash
 
-Composite ≥ 0.85
+Increment total_sessions
 
-Technique score ≥ 0.75
+If composite >= threshold:
 
-At least 1 song mastered
+successful_sessions += 1
 
-🎯 7️⃣ PRACTICE RECOMMENDATION LOGIC
+last_success_at = now()
 
-Curriculum engine outputs:
+Update rolling weighted average
 
-{
-  "recommended_content": "alankar_4",
-  "reason": "Previous alankar mastered",
-  "locked": ["song_2"],
-  "next_goal": "Improve rhythm stability to unlock Level 2"
-}
+If successful_sessions >= 3 → unlock
 
-Adaptive engine then modifies tempo inside that.
+Save state atomically
 
-🔥 8️⃣ PHRASE-LEVEL REQUIREMENT FOR SONGS
+No branching.
+No special case per content.
 
-For song mastery:
+🧠 Curriculum Engine After Refactor
 
-Require:
+Instead of:
 
-All phrases ≥ 80% technique_score
-
-Overall timing error < threshold
-
-No plateau state
-
-Only then unlock full-song advanced mode.
-
-🧩 9️⃣ TECHNIQUE-SPECIFIC TRACK
-
-We also add:
-
-Technique ladder:
-
-Level 1: Meend optional
-Level 2: Meend required
-Level 3: Gamak required
-Level 4: Expressive variation required
-
-Curriculum engine checks:
-
-Technique trend slope positive.
-
-🧱 10️⃣ DATABASE ADDITIONS
-
-Add table:
-
-student_progress
-----------------
-user_id
-current_level
-unlocked_content (json)
-mastered_content (json)
-last_evaluated
-
-Optional:
-
-content_mastery
----------------
-user_id
-content_id
-sessions_passed
-mastered_flag
-🧠 11️⃣ FINAL CURRICULUM FLOW
-
-Student practices →
-Evaluation →
-Analytics →
-Curriculum Decision →
-Unlock / Lock / Recommend →
-Adaptive engine adjusts tempo →
-Practice continues
-
-Closed feedback loop.
-
-📊 SYSTEM AFTER CURRICULUM IMPLEMENTATION
+get_alankar_mastery(...)
+get_phrase_mastery(...)
 
 It becomes:
 
-Not just adaptive.
+SELECT * FROM skill_progress
+WHERE user_id = ?
+AND skill_type = 'alankar'
 
-Not just expressive-aware.
+Cleaner.
+Scalable.
+Future-proof.
 
-But structured learning engine.
+🚀 Migration Plan
 
-🏁 FINAL SYSTEM CLASSIFICATION
+Create canonical skill_progress
 
-Without curriculum:
-AI evaluator.
+Migrate existing mastery rows into it
 
-With curriculum:
-AI music training platform.
+Make all updates go through canonical function
 
-🚀 IMPLEMENTATION ORDER
+Deprecate legacy update functions
 
-Step 1: Add content metadata
-Step 2: Create student_progress table
-Step 3: Build evaluate_curriculum_progress()
-Step 4: Inject into practice endpoint
-Step 5: Add curriculum response block to API
+Remove compatibility branching
 
-🎯 Your Current System Readiness
+This eliminates 80% of your progression technical debt.
 
-You are 100% ready to implement this.
-All required analytics and technique metrics already exist.
+PART 2 — Clean Streak Domain Model
 
-No architectural rewrite needed.
+Now we design streak properly — not helper-level.
+
+🎯 Design Goal
+
+Timezone-safe
+
+Idempotent per logical day
+
+No double increment
+
+No server midnight issues
+
+Offset-adjustable
+
+Travel-safe
+
+🗄 Tables
+1️⃣ user_profile
+CREATE TABLE user_profile (
+    user_id TEXT PRIMARY KEY,
+    timezone_offset_minutes INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+2️⃣ practice_streak
+CREATE TABLE practice_streak (
+    user_id TEXT PRIMARY KEY,
+
+    current_streak INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+
+    last_practice_logical_date TEXT,
+    total_practice_days INTEGER DEFAULT 0,
+
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+🧠 Core Concept
+
+We NEVER use server date directly.
+
+We use:
+
+logical_date = utc_now + user_timezone_offset
+
+Everything is computed on logical_date.
+
+🔁 Canonical Update Function
+def update_practice_streak(user_id: str) -> dict:
+Flow:
+
+Compute logical_date
+
+Fetch last_practice_logical_date
+
+Calculate delta_days
+
+If:
+
+delta == 0 → no change
+
+delta == 1 → increment streak
+
+delta > 1 → reset to 1
+
+no previous record → set to 1
+
+Update longest_streak if needed
+
+Save atomic
+
+🛡 Idempotency Guarantee
+
+If same user submits 3 sessions same day:
+
+delta = 0
+Streak unchanged.
+
+No double increment possible.
+
+📦 Optional Enhancement (Future-Proof)
+
+Add:
+
+CREATE TABLE practice_days (
+    user_id TEXT,
+    logical_date TEXT,
+    PRIMARY KEY (user_id, logical_date)
+);
+
+Then:
+
+Insert logical_date
+
+If conflict → already practiced
+
+Streak increments only when new row inserted
+
+This gives perfect dedupe.
+
+Final Architecture After Both Refactors
+
+You will have:
+
+Progression Layer
+skill_progress (canonical)
+Session Layer
+sessions
+session_hash_registry
+Analytics Layer
+analytics_snapshots
+Streak Layer
+user_profile
+practice_streak
+practice_days (optional)
+Curriculum Layer
+
+Driven entirely from skill_progress
+
+Strategic Outcome
+
+After these two designs:
+
+✔ No duplicate mastery paths
+✔ No branching per skill type
+✔ No streak edge-case bugs
+✔ No timezone ambiguity
+✔ Fully normalized progression domain
+✔ Clean separation of concerns
+
+What You Become After This
+
+Not a project.
+
+A platform.

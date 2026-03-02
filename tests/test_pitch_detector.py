@@ -12,13 +12,17 @@ def callback(indata, frames, time_info, status):
     if freq > 0 and conf > 0.8:
         print(f"Pitch: {freq:.2f} Hz | Confidence: {conf:.2f}")
 
-print("🎵 Test Pitch Detector (Ctrl+C to stop)")
-with sd.InputStream(
-    channels=1,
-    samplerate=SAMPLERATE,
-    blocksize=512,
-    callback=callback
-):
+def run_pitch_detector_live_test():
+    print("🎵 Test Pitch Detector (Ctrl+C to stop)")
+    with sd.InputStream(
+        channels=1,
+        samplerate=SAMPLERATE,
+        blocksize=512,
+        callback=callback
+    ):
+        while True:
+            time.sleep(0.1)
 
-    while True:
-        time.sleep(0.1)
+
+if __name__ == "__main__":
+    run_pitch_detector_live_test()

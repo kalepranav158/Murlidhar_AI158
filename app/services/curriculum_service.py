@@ -65,6 +65,7 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
     # filter out any invalid entries that may have crept in (e.g. None)
     unlocked = {x for x in profile.get("unlocked_content", []) if isinstance(x, str)}
     mastered = {x for x in profile.get("mastered_content", []) if isinstance(x, str)}
+    newly_unlocked = []
 
     # ensure at least one piece of content is available for current level
     if not unlocked:
@@ -98,6 +99,7 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
                 nxt = content.get("unlock_next")
                 if nxt:
                     unlocked.add(nxt)
+                    newly_unlocked.append(nxt)
         else:
             # treat anything else as song/exercise
             total = len(content.get("phrases", []))
@@ -106,6 +108,7 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
                 nxt = content.get("unlock_next")
                 if nxt:
                     unlocked.add(nxt)
+                    newly_unlocked.append(nxt)
 
     profile["unlocked_content"] = list(unlocked)
     profile["mastered_content"] = list(mastered)
@@ -117,8 +120,14 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
     # recommendation & goals
     recommended = None
     reason = None
+    for c in newly_unlocked:
+        if c in profile["unlocked_content"] and c not in profile["mastered_content"]:
+            recommended = c
+            reason = "Just unlocked from newly mastered content"
+            break
+
     for c in profile["unlocked_content"]:
-        if c not in profile["mastered_content"]:
+        if recommended is None and c not in profile["mastered_content"]:
             recommended = c
             reason = "Next unlocked content"
             break

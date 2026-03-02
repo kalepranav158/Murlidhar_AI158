@@ -723,7 +723,7 @@ def detect_techniques(pitch_contour: List[Dict[str, Any]]) -> Dict[str, Any]:
     diffs = np.diff(logcents)
 
     # detection thresholds
-    MIN_CENTS_TOTAL = 100.0   # > ~1 semitone
+    MIN_CENTS_TOTAL = 50.0    # allow smaller but clear glides (~quarter tone+)
     MIN_DURATION = 0.15       # seconds
     MIN_MONOTONIC_PROP = 0.8
     SMALL_DIFF_THRESHOLD = 0.5  # cents per-frame to ignore micro-jitter

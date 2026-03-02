@@ -103,6 +103,7 @@ def test_compare_with_reference_no_overlap():
 
 def test_monotonic_proportion_with_micro_jitter():
     """Verify that micro-jitter doesn't break monotonic detection."""
+    np.random.seed(7)
     # Simulate: mostly upward glide with tiny oscillations
     pc = []
     t = 0.0

@@ -23,7 +23,8 @@
         {"note": "Madhya Ma", "time": 1.5},
         {"note": "Madhya Pa", "time": 2.0},
         {"note": "Madhya Dha", "time": 2.5},
-        {"note": "Madhya Ni", "time": 3.0}
+        {"note": "Madhya Ni", "time": 3.0},
+        {"note": "Taar Sa", "time": 3.5}
       ]
     }
   ]

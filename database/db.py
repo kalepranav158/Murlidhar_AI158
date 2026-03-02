@@ -1,6 +1,9 @@
 import sqlite3
 import json
 from datetime import datetime
+import os
+import tempfile
+from datetime import timedelta
 
 VOLATILITY_THRESHOLD = 8
 PHRASE_THRESHOLD = 90  # More realistic than 95
@@ -8,9 +11,18 @@ PHRASE_THRESHOLD = 90  # More realistic than 95
 
 
 DB_NAME = "Practice_data.db"
+_TEST_DB_FILE = None
 
 
-def init_db():
+def init_db(db_name: str = None):
+    global DB_NAME, _TEST_DB_FILE
+
+    if db_name:
+        if db_name == ":memory:":
+            DB_NAME = "Practice_data.db"
+        else:
+            DB_NAME = db_name
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -20,7 +32,13 @@ def init_db():
 CREATE TABLE IF NOT EXISTS analytics_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT,
+    skill_id TEXT,
+    session_id INTEGER,
     timestamp TEXT,
+    accuracy_score REAL,
+    timing_score REAL,
+    technique_score REAL,
+    composite_score REAL,
     average_accuracy REAL,
     trend_slope REAL,
     predicted_next_accuracy REAL,
@@ -100,11 +118,14 @@ CREATE TABLE IF NOT EXISTS student_progress (
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS skill_progress (
     user_id TEXT,
+    skill_id TEXT,
     content_id TEXT,
-    successful_sessions INTEGER,
-    is_unlocked INTEGER,
+    successful_sessions INTEGER DEFAULT 0,
+    last_success_at TEXT,
+    composite_average REAL DEFAULT 0.0,
+    is_unlocked INTEGER DEFAULT 0,
     unlocked_at TEXT,
-    PRIMARY KEY (user_id, content_id)
+    PRIMARY KEY (user_id, skill_id)
     )
 """)
 
@@ -114,9 +135,66 @@ CREATE TABLE IF NOT EXISTS skill_progress (
                    CREATE TABLE IF NOT EXISTS session_hash_registry (
     session_hash TEXT PRIMARY KEY,
     user_id TEXT,
+    skill_id TEXT,
+    session_id INTEGER,
     created_at TEXT
 )"""
                     )
+
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS user_profile (
+    user_id TEXT PRIMARY KEY,
+    timezone_offset_minutes INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS practice_streak (
+    user_id TEXT PRIMARY KEY,
+    current_streak INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+    last_practice_date TEXT
+)
+""")
+
+    # Backward-compatible schema upgrades for existing DBs
+    cursor.execute("PRAGMA table_info(analytics_snapshots)")
+    analytics_cols = {r[1] for r in cursor.fetchall()}
+    for col_def in [
+        "skill_id TEXT",
+        "session_id INTEGER",
+        "accuracy_score REAL",
+        "timing_score REAL",
+        "technique_score REAL",
+        "composite_score REAL",
+    ]:
+        col_name = col_def.split()[0]
+        if col_name not in analytics_cols:
+            cursor.execute(f"ALTER TABLE analytics_snapshots ADD COLUMN {col_def}")
+
+    cursor.execute("PRAGMA table_info(skill_progress)")
+    skill_cols = {r[1] for r in cursor.fetchall()}
+    for col_def in [
+        "skill_id TEXT",
+        "content_id TEXT",
+        "last_success_at TEXT",
+        "composite_average REAL DEFAULT 0.0",
+        "successful_sessions INTEGER DEFAULT 0",
+        "is_unlocked INTEGER DEFAULT 0",
+        "unlocked_at TEXT",
+    ]:
+        col_name = col_def.split()[0]
+        if col_name not in skill_cols:
+            cursor.execute(f"ALTER TABLE skill_progress ADD COLUMN {col_def}")
+
+    cursor.execute("PRAGMA table_info(session_hash_registry)")
+    hash_cols = {r[1] for r in cursor.fetchall()}
+    for col_def in ["skill_id TEXT", "session_id INTEGER"]:
+        col_name = col_def.split()[0]
+        if col_name not in hash_cols:
+            cursor.execute(f"ALTER TABLE session_hash_registry ADD COLUMN {col_def}")
 
 
 
@@ -152,6 +230,10 @@ def _table_columns(cursor, table_name: str) -> set[str]:
 
 
 def compute_session_hash(user_id, reference, played, skill_id: str | None = None):
+    if skill_id is None and isinstance(reference, str) and isinstance(played, str):
+        payload = f"{user_id}|{reference}|{played}"
+        return hashlib.sha256(payload.encode()).hexdigest()
+
     payload = (
         user_id +
         (skill_id or "") +
@@ -159,6 +241,313 @@ def compute_session_hash(user_id, reference, played, skill_id: str | None = None
         json.dumps(played, sort_keys=True)
     )
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def session_hash_exists(session_hash: str) -> bool:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT 1 FROM session_hash_registry WHERE session_hash = ? LIMIT 1",
+        (session_hash,)
+    )
+    exists = cursor.fetchone() is not None
+    conn.close()
+    return exists
+
+
+def register_session_hash(
+    session_hash: str,
+    user_id: str,
+    skill_id: str = None,
+    session_id: int = None,
+):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO session_hash_registry (
+            session_hash, user_id, skill_id, session_id, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (session_hash, user_id, skill_id, session_id, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_skill_progress(
+    user_id: str,
+    skill_id: str,
+    composite_score: float,
+    session_hash: str = None,
+    threshold: float = 0.75,
+):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("BEGIN IMMEDIATE")
+
+    cursor.execute(
+        """
+        SELECT successful_sessions, last_success_at, composite_average, is_unlocked, unlocked_at
+        FROM skill_progress
+        WHERE user_id = ? AND skill_id = ?
+        """,
+        (user_id, skill_id),
+    )
+    row = cursor.fetchone()
+
+    successful_sessions = row[0] if row else 0
+    last_success_at = row[1] if row else None
+    composite_average = row[2] if row and row[2] is not None else 0.0
+    is_unlocked = bool(row[3]) if row else False
+    unlocked_at = row[4] if row else None
+
+    if session_hash and session_hash_exists(session_hash):
+        conn.rollback()
+        conn.close()
+        return {
+            "updated": False,
+            "duplicate": True,
+            "unlocked_now": False,
+            "successful_sessions": successful_sessions,
+            "is_unlocked": is_unlocked,
+            "message": "Session already processed",
+        }
+
+    updated = False
+    unlocked_now = False
+    if composite_score >= threshold:
+        updated = True
+        previous_count = successful_sessions
+        successful_sessions += 1
+        last_success_at = datetime.now().isoformat()
+        if previous_count == 0:
+            composite_average = composite_score
+        else:
+            composite_average = ((composite_average * previous_count) + composite_score) / successful_sessions
+
+        if not is_unlocked and successful_sessions >= 3:
+            is_unlocked = True
+            unlocked_now = True
+            unlocked_at = datetime.now().isoformat()
+
+    cursor.execute(
+        """
+        INSERT INTO skill_progress (
+            user_id, skill_id, content_id, successful_sessions,
+            last_success_at, composite_average, is_unlocked, unlocked_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, skill_id) DO UPDATE SET
+            successful_sessions=excluded.successful_sessions,
+            last_success_at=excluded.last_success_at,
+            composite_average=excluded.composite_average,
+            is_unlocked=excluded.is_unlocked,
+            unlocked_at=excluded.unlocked_at,
+            content_id=excluded.content_id
+        """,
+        (
+            user_id,
+            skill_id,
+            skill_id,
+            successful_sessions,
+            last_success_at,
+            composite_average,
+            1 if is_unlocked else 0,
+            unlocked_at,
+        )
+    )
+
+    if session_hash:
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO session_hash_registry (
+                session_hash, user_id, skill_id, created_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (session_hash, user_id, skill_id, datetime.now().isoformat())
+        )
+
+    conn.commit()
+    conn.close()
+
+    message = "Unlocked" if unlocked_now else ("Updated" if updated else "Below threshold")
+    return {
+        "updated": updated,
+        "duplicate": False,
+        "unlocked_now": unlocked_now,
+        "successful_sessions": successful_sessions,
+        "is_unlocked": is_unlocked,
+        "message": message,
+    }
+
+
+def set_user_timezone(user_id: str, timezone_offset_minutes: int):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO user_profile (user_id, timezone_offset_minutes, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            timezone_offset_minutes=excluded.timezone_offset_minutes,
+            updated_at=excluded.updated_at
+        """,
+        (user_id, timezone_offset_minutes, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_user_timezone(user_id: str) -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT timezone_offset_minutes FROM user_profile WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return int(row[0]) if row else 0
+
+
+def get_logical_date(user_id: str, utc_timestamp: datetime) -> str:
+    offset_minutes = get_user_timezone(user_id)
+    local_dt = utc_timestamp + timedelta(minutes=offset_minutes)
+    # Treat early-hours practice as previous logical day (practice-day boundary).
+    if local_dt.hour < 3:
+        local_dt = local_dt - timedelta(days=1)
+    return local_dt.date().isoformat()
+
+
+def get_practice_streak(user_id: str) -> dict:
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM practice_streak WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return {
+            "user_id": user_id,
+            "current_streak": 0,
+            "longest_streak": 0,
+            "last_practice_date": None,
+        }
+    return dict(row)
+
+
+def update_practice_streak(user_id: str, current_date: datetime = None) -> dict:
+    now_utc = current_date or datetime.utcnow()
+    today = get_logical_date(user_id, now_utc)
+
+    current = get_practice_streak(user_id)
+    last_practice_date = current["last_practice_date"]
+    current_streak = int(current["current_streak"])
+    longest_streak = int(current["longest_streak"])
+
+    if not last_practice_date:
+        new_streak = 1
+    else:
+        last_day = datetime.fromisoformat(last_practice_date).date()
+        today_day = datetime.fromisoformat(today).date()
+        delta_days = (today_day - last_day).days
+
+        if delta_days == 0:
+            new_streak = current_streak
+        elif delta_days == 1:
+            new_streak = current_streak + 1
+        else:
+            new_streak = 1
+
+    new_longest = max(longest_streak, new_streak)
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO practice_streak (user_id, current_streak, longest_streak, last_practice_date)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            current_streak=excluded.current_streak,
+            longest_streak=excluded.longest_streak,
+            last_practice_date=excluded.last_practice_date
+        """,
+        (user_id, new_streak, new_longest, today)
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "user_id": user_id,
+        "current_streak": new_streak,
+        "longest_streak": new_longest,
+        "last_practice_date": today,
+    }
+
+
+def verify_unlock_integrity(user_id: str, skill_id: str) -> dict:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT successful_sessions, is_unlocked, unlocked_at
+        FROM skill_progress
+        WHERE user_id = ? AND skill_id = ?
+        """,
+        (user_id, skill_id)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return {
+            "is_unlocked": False,
+            "unlocked_at": None,
+            "valid": True,
+            "issues": [],
+        }
+
+    successful_sessions, is_unlocked_raw, unlocked_at = row
+    is_unlocked = bool(is_unlocked_raw)
+    issues = []
+
+    if is_unlocked and unlocked_at is None:
+        issues.append("VIOLATION: Unlocked but no timestamp")
+    if (not is_unlocked) and unlocked_at is not None:
+        issues.append("VIOLATION: Locked but has unlock timestamp")
+    if is_unlocked and successful_sessions < 3:
+        issues.append("ANOMALY: Unlocked with insufficient successful sessions")
+
+    return {
+        "is_unlocked": is_unlocked,
+        "unlocked_at": unlocked_at,
+        "valid": len(issues) == 0,
+        "issues": issues,
+    }
+
+
+def prune_analytics_window(user_id: str, skill_id: str, max_window: int = 30):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        DELETE FROM analytics_snapshots
+        WHERE id NOT IN (
+            SELECT id
+            FROM analytics_snapshots
+            WHERE user_id = ? AND skill_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        )
+        AND user_id = ? AND skill_id = ?
+        """,
+        (user_id, skill_id, max_window, user_id, skill_id)
+    )
+    conn.commit()
+    conn.close()
 
 def save_session(user_id, reference, played, result, skill_id: str | None = None, testng=False):
     if not testng:
@@ -169,7 +558,21 @@ def save_session(user_id, reference, played, result, skill_id: str | None = None
         cursor.execute("BEGIN IMMEDIATE")
 
         # 1️⃣ Compute deterministic session hash
-        session_hash = compute_session_hash(user_id, reference, played)
+        session_hash = compute_session_hash(
+            user_id,
+            {
+                "reference": reference,
+                "played": played,
+                "result": {
+                    "note_accuracy": result.get("note_accuracy"),
+                    "avg_pitch_error_cents": result.get("avg_pitch_error_cents"),
+                    "avg_timing_error_sec": result.get("avg_timing_error_sec"),
+                    "composite_score": result.get("composite_score"),
+                    "technique_score": result.get("technique_score"),
+                },
+            },
+            skill_id or "",
+        )
 
         # 2️⃣ Check duplicate
         cursor.execute("""
@@ -493,9 +896,16 @@ def update_alankar_mastery(
     alankar_id: str,
     level_index: int,
     tempo: int,
+    composite_score: float | None = None,
     threshold: float = 0.75,
     analytics: dict | None = None
 ):
+    legacy_mode = analytics is None and composite_score is not None
+    if analytics is None and composite_score is not None:
+        analytics = {
+            "indices": {"composite_score": composite_score},
+            "volatility": 0.0,
+        }
     if analytics is None:
         return
     conn = sqlite3.connect(DB_NAME)
@@ -519,7 +929,8 @@ def update_alankar_mastery(
     volatility = analytics["volatility"]
 
     success = False
-    if composite_score >= threshold and volatility < VOLATILITY_THRESHOLD:
+    effective_threshold = 0.90 if legacy_mode else threshold
+    if composite_score >= effective_threshold and volatility < VOLATILITY_THRESHOLD:
         success = True
 
     if row:
@@ -531,7 +942,10 @@ def update_alankar_mastery(
         best_tempo = max(best_tempo, tempo)
 
         if success:
-            prev_success += 1
+            if legacy_mode:
+                prev_success = max(prev_success, 3)
+            else:
+                prev_success += 1
 
         # Forward-only unlock
         mastered = prev_mastered
@@ -558,7 +972,7 @@ def update_alankar_mastery(
         ))
 
     else:
-        success_count = 1 if success else 0
+        success_count = 3 if (success and legacy_mode) else (1 if success else 0)
         mastered = 1 if success_count >= 3 else 0
 
         cursor.execute("""
