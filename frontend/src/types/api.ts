@@ -1,6 +1,8 @@
 export type MessagePayload = {
+  status?: "no_data" | "error";
   message: string;
   error?: string;
+  data?: unknown;
 };
 
 export type StudentProfileApi = {

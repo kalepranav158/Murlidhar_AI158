@@ -6,6 +6,7 @@ from app.services.dashboard_service import build_dashboard
 from app.future_plans.test_dashboard import analytics_dashboard
 from app.services.analytics_services import build_risk_profile
 from database.db import get_weakest_phrase
+from app.routes.response_envelope import no_data_response, error_response
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -16,7 +17,7 @@ def get_summary(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=100)
 
     if not sessions:
-        return {"message": "No sessions available."}
+        return no_data_response("No sessions available.")
 
     total = len(sessions)
 
@@ -42,7 +43,7 @@ def get_trend(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 2:
-        return {"message": "Not enough sessions."}
+        return no_data_response("Not enough sessions.")
 
     sessions.reverse()
 
@@ -63,7 +64,7 @@ def get_skill_level(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=50)
 
     if not sessions:
-        return {"message": "No sessions available."}
+        return no_data_response("No sessions available.")
 
     avg_note = sum(s["note_accuracy"] for s in sessions) / len(sessions)
     avg_pitch = sum(s["avg_pitch_error"] for s in sessions) / len(sessions)
@@ -95,7 +96,7 @@ def get_consistency(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 3:
-        return {"message": "Not enough sessions for consistency analysis."}
+        return no_data_response("Not enough sessions for consistency analysis.")
 
     accuracies = [s["note_accuracy"] for s in sessions]
 
@@ -120,7 +121,7 @@ def get_pitch_stability(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=50)
 
     if not sessions:
-        return {"message": "No sessions available."}
+        return no_data_response("No sessions available.")
 
     avg_pitch = sum(s["avg_pitch_error"] for s in sessions) / len(sessions)
 
@@ -169,7 +170,7 @@ def get_recommendation(user_id:str):
     sessions = get_sessions(user_id=user_id,limit=30)
 
     if not sessions:
-        return {"message": "No sessions available."}
+        return no_data_response("No sessions available.")
 
     avg_note = sum(s["note_accuracy"] for s in sessions) / len(sessions)
     avg_pitch = sum(s["avg_pitch_error"] for s in sessions) / len(sessions)
@@ -214,7 +215,7 @@ def get_consistency_details(user_id: str):
     sessions = get_sessions(user_id=user_id, limit=50)
 
     if len(sessions) < 3:
-        return {"message": "Not enough sessions."}
+        return no_data_response("Not enough sessions.")
 
     accuracies = [s["note_accuracy"] for s in sessions]
     pitch_errors = [s["avg_pitch_error"] for s in sessions]
@@ -255,13 +256,13 @@ def radar(user_id: str = Query(...)):
     try:
         return build_latest_radar(user_id)
     except Exception as e:
-        return {"message": "Error generating radar data", "error": str(e)}
+        return error_response("Error generating radar data", error=str(e))
 
 @router.get("/skill-evolution")
 def skill_evolution(user_id: str):
     data = build_skill_evolution(user_id)
     if not data:
-        return {"message": "No data found"}
+        return no_data_response("No data found")
     return data
 
 @router.get("/risk")
@@ -270,7 +271,7 @@ def risk(user_id: str):
     try:
         return build_risk_profile(user_id)
     except Exception as e:
-        return {"message": "Error generating risk profile", "error": str(e)}
+        return error_response("Error generating risk profile", error=str(e))
     
 
 
@@ -281,7 +282,7 @@ def forecast(user_id: str):
     try:
         return build_ml_forecast(user_id)
     except Exception as e:
-        return {"message": "Error generating forecast", "error": str(e)}
+        return error_response("Error generating forecast", error=str(e))
     
 
 
@@ -294,6 +295,6 @@ def weakest_phrase(user_id: str, song_id: str):
     data = get_weakest_phrase(user_id, song_id)
 
     if not data:
-        return {"message": " Not Enough data to determine weakest phrase"}
+        return no_data_response("Not enough data to determine weakest phrase")
 
     return data    

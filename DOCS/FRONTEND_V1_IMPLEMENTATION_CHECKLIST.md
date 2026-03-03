@@ -61,18 +61,20 @@
 ---
 
 ## 2) Phase 0 Contract Freeze (Required Before UI Build)
-- [ ] Freeze **v1 frontend-consumed endpoints** (non-debug only).
+- [x] Freeze **v1 frontend-consumed endpoints** (non-debug only).
 - [x] Production wrappers available:
   - [x] `GET /student/profile`
   - [x] `GET /student/curriculum`
   - [x] `GET /student/analytics`
   - [x] `GET /student/streak`
 - [x] Wrappers mapped to existing production services (not debug routes).
-- [ ] For each chosen endpoint, freeze:
-  - [ ] Required params and identity propagation method
-  - [ ] Success payload schema
-  - [ ] Message-only / no-data fallback payload
-  - [ ] Error payload and status codes
+- [x] For each chosen endpoint, freeze:
+  - [x] Required params and identity propagation method
+  - [x] Success payload schema
+  - [x] Message-only / no-data fallback payload
+  - [x] Error payload and status codes
+
+Contract reference: `DOCS/API_CONTRACT_V1.md`.
 
 **Decision note:** Frontend should default to `/student/*` wrappers for profile/curriculum/analytics/streak and use `/practice/*`, `/sessions`, `/songs` as supporting APIs.
 
@@ -175,10 +177,11 @@ Create `src/api/adapters.ts` and normalize all backend responses into stable fro
 
 ## 6) Backend Follow-Ups (Recommended Before UI Finalization)
 - [x] Added clean production wrappers under `/student/*`.
-- [ ] Normalize path naming oddities for future stability:
+- [x] Normalize path naming oddities for future stability:
   - [x] `/practice/practice/song/full/...` (normalized alias `/practice/song/full/...` added)
   - [x] `/analytics/analytics/radar` (normalized alias `/analytics/radar` added)
-- [ ] Standardize all no-data responses to a shared envelope shape.
+- [x] Standardized no-data/error responses to a shared envelope shape across route modules (`analytics`, `student`, `sessions`, `debug`).
+- [x] Added contract regression tests for envelope behavior on key routes (`tests/test_api_contract_v1.py`).
 
 ---
 

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Query
 from app.services.analytics_engine import compute_analytics
 from app.services.curriculum_service import evaluate_curriculum_progress
 from database.db import get_practice_streak
+from app.routes.response_envelope import no_data_response
 
 
 router = APIRouter(prefix="/student", tags=["Student"])
@@ -34,7 +35,7 @@ def get_student_analytics(user_id: str = Query(...)):
     analytics = compute_analytics(user_id)
 
     if analytics is None:
-        return {"message": "Not enough sessions."}
+        return no_data_response("Not enough sessions.")
 
     return analytics
 

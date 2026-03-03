@@ -20,10 +20,13 @@ const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 
 export const isMessagePayload = (payload: unknown): payload is MessagePayload => {
+  const status = (payload as { status?: unknown })?.status;
+  const hasEnvelopeStatus = status === "no_data" || status === "error";
+
   return (
     typeof payload === "object" &&
     payload !== null &&
-    "message" in payload &&
+    (hasEnvelopeStatus || "message" in payload) &&
     typeof (payload as { message?: unknown }).message === "string"
   );
 };

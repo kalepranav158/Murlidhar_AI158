@@ -6,6 +6,7 @@ from fastapi import APIRouter
 import sqlite3
 from datetime import datetime
 import database.db as db
+from app.routes.response_envelope import no_data_response
 
 router = APIRouter(prefix="/debug", tags=["Debug"])
 
@@ -63,7 +64,7 @@ async def debug_alankar_mastery(user_id: str, alankar_id: str):
     conn.close()
 
     if not row:
-        return {"message": "No skill_progress record found"}
+        return no_data_response("No skill_progress record found")
 
     return dict(row)
 
@@ -89,7 +90,7 @@ async def debug_phrase_mastery(user_id: str, song_id: str, phrase_id: int):
     conn.close()
 
     if not row:
-        return {"message": "No phrase skill_progress record found"}
+        return no_data_response("No phrase skill_progress record found")
 
     return dict(row)
 
@@ -155,6 +156,6 @@ async def debug_student_progress(user_id: str):
     conn.close()
 
     if not row:
-        return {"message": "No student progress record found"}
+        return no_data_response("No student progress record found")
 
     return dict(row)
