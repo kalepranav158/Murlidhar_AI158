@@ -42,7 +42,9 @@ class PracticeResponse(BaseModel):
     song_adaptive_plan: Optional[SongAdaptivePlanResponse] = None
     full_song_unlocked: bool = False
     played_notes: List[PlayedNote]
+    detected_notes: Optional[List[PlayedNote]] = None
     curriculum: Optional[CurriculumResponse] = None
+    alignment_debug: Optional[dict] = None
 
 
 

@@ -1,3 +1,74 @@
+from statistics import median, pstdev
+
+
+NOTE_TO_INT = {
+    "Sa": 0,
+    "Komal Re": 1,
+    "Re": 2,
+    "Komal Ga": 3,
+    "Ga": 4,
+    "Ma": 5,
+    "Tivra Ma": 6,
+    "Pa": 7,
+    "Komal Dha": 8,
+    "Dha": 9,
+    "Komal Ni": 10,
+    "Ni": 11,
+}
+
+OCTAVE_TO_INT = {
+    "Mandra": -1,
+    "Madhya": 0,
+    "Taar": 1,
+}
+
+
+def _note_to_index(note_string: str):
+    parts = (note_string or "").split(" ", 1)
+    if len(parts) == 2:
+        octave, base_note = parts
+    else:
+        octave, base_note = "Madhya", parts[0] if parts else ""
+
+    if base_note not in NOTE_TO_INT:
+        return None
+
+    return OCTAVE_TO_INT.get(octave, 0) * 12 + NOTE_TO_INT[base_note]
+
+
+def _compute_transposition_accuracy(alignment):
+    semitone_diffs = []
+    indexed_pairs = []
+
+    for ref, play in alignment:
+        ref_idx = _note_to_index(ref.get("note", ""))
+        play_idx = _note_to_index(play.get("note", ""))
+        if ref_idx is None or play_idx is None:
+            continue
+
+        diff = play_idx - ref_idx
+        semitone_diffs.append(diff)
+        indexed_pairs.append((ref_idx, play_idx))
+
+    if not indexed_pairs:
+        return None
+
+    tonic_shift = int(round(median(semitone_diffs)))
+    shift_stability = pstdev(semitone_diffs) if len(semitone_diffs) > 1 else 0.0
+
+    corrected_matches = 0
+    for ref_idx, play_idx in indexed_pairs:
+        if ref_idx == (play_idx - tonic_shift):
+            corrected_matches += 1
+
+    corrected_accuracy = round(100 * corrected_matches / len(indexed_pairs), 2)
+
+    return {
+        "accuracy": corrected_accuracy,
+        "tonic_shift": tonic_shift,
+        "stability": shift_stability,
+    }
+
 
 def evaluate(alignment):
     """
@@ -35,6 +106,15 @@ def evaluate(alignment):
         pitch_errors.append(abs(play["cents"]))
 
     note_accuracy = round(100 * correct / len(alignment), 2)
+
+    transposed = _compute_transposition_accuracy(alignment)
+    if (
+        transposed
+        and transposed["accuracy"] > note_accuracy
+        and transposed["stability"] <= 0.5
+    ):
+        note_accuracy = transposed["accuracy"]
+
     avg_pitch_error = round(sum(pitch_errors) / len(pitch_errors), 2)
 
     # --- relative timing evaluation (IOI-based) ---

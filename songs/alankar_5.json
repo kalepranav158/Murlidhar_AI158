@@ -1,0 +1,39 @@
+{
+  "id": "alankar_5",
+  "type": "alankar",
+  "level": "beginner",
+  "title": "Basic Alankar 5 - 6-note Vakra Flow",
+  "required_accuracy": 83,
+  "required_rhythm_index": 0.64,
+  "required_technique_score": 0.0,
+  "unlock_next": "alankar_6",
+  "base_tempo": 60,
+  "tempo_levels": [55, 65, 80, 100],
+  "supports_variations": true,
+  "supports_reverse": true,
+  "supports_tempo_cycle": true,
+  "skill_focus": ["pitch", "rhythm", "flow"],
+  "practice_guidance": {
+    "repeat_default": 4,
+    "continuous_play_after_round": true
+  },
+  "phrases": [
+    { "id": 0, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Ni","time":0.0},{"note":"Madhya Sa","time":0.5},{"note":"Madhya Re","time":1.0},{"note":"Madhya Ga","time":1.5},{"note":"Madhya Re","time":2.0},{"note":"Madhya Sa","time":2.5} ] },
+    { "id": 1, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Sa","time":0.0},{"note":"Madhya Re","time":0.5},{"note":"Madhya Ga","time":1.0},{"note":"Madhya Ma","time":1.5},{"note":"Madhya Ga","time":2.0},{"note":"Madhya Re","time":2.5} ] },
+    { "id": 2, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Re","time":0.0},{"note":"Madhya Ga","time":0.5},{"note":"Madhya Ma","time":1.0},{"note":"Madhya Pa","time":1.5},{"note":"Madhya Ma","time":2.0},{"note":"Madhya Ga","time":2.5} ] },
+    { "id": 3, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Ga","time":0.0},{"note":"Madhya Ma","time":0.5},{"note":"Madhya Pa","time":1.0},{"note":"Madhya Dha","time":1.5},{"note":"Madhya Pa","time":2.0},{"note":"Madhya Ma","time":2.5} ] },
+    { "id": 4, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Ma","time":0.0},{"note":"Madhya Pa","time":0.5},{"note":"Madhya Dha","time":1.0},{"note":"Madhya Ni","time":1.5},{"note":"Madhya Dha","time":2.0},{"note":"Madhya Pa","time":2.5} ] },
+    { "id": 5, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Pa","time":0.0},{"note":"Madhya Dha","time":0.5},{"note":"Madhya Ni","time":1.0},{"note":"Taar Sa","time":1.5},{"note":"Madhya Ni","time":2.0},{"note":"Madhya Dha","time":2.5} ] },
+    { "id": 6, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Dha","time":0.0},{"note":"Madhya Ni","time":0.5},{"note":"Taar Sa","time":1.0},{"note":"Taar Re","time":1.5},{"note":"Taar Sa","time":2.0},{"note":"Madhya Ni","time":2.5} ] },
+    { "id": 7, "section": "aaroh", "repeat": 4, "notes": [ {"note":"Madhya Ni","time":0.0},{"note":"Taar Sa","time":0.5},{"note":"Taar Re","time":1.0},{"note":"Taar Ga","time":1.5},{"note":"Taar Re","time":2.0},{"note":"Taar Sa","time":2.5} ] },
+
+    { "id": 8, "section": "avroh", "repeat": 4, "notes": [ {"note":"Taar Re","time":0.0},{"note":"Taar Sa","time":0.5},{"note":"Madhya Ni","time":1.0},{"note":"Madhya Dha","time":1.5},{"note":"Madhya Ni","time":2.0},{"note":"Taar Sa","time":2.5} ] },
+    { "id": 9, "section": "avroh", "repeat": 4, "notes": [ {"note":"Taar Sa","time":0.0},{"note":"Madhya Ni","time":0.5},{"note":"Madhya Dha","time":1.0},{"note":"Madhya Pa","time":1.5},{"note":"Madhya Dha","time":2.0},{"note":"Madhya Ni","time":2.5} ] },
+    { "id": 10, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Ni","time":0.0},{"note":"Madhya Dha","time":0.5},{"note":"Madhya Pa","time":1.0},{"note":"Madhya Ma","time":1.5},{"note":"Madhya Pa","time":2.0},{"note":"Madhya Dha","time":2.5} ] },
+    { "id": 11, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Dha","time":0.0},{"note":"Madhya Pa","time":0.5},{"note":"Madhya Ma","time":1.0},{"note":"Madhya Ga","time":1.5},{"note":"Madhya Ma","time":2.0},{"note":"Madhya Pa","time":2.5} ] },
+    { "id": 12, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Pa","time":0.0},{"note":"Madhya Ma","time":0.5},{"note":"Madhya Ga","time":1.0},{"note":"Madhya Re","time":1.5},{"note":"Madhya Ga","time":2.0},{"note":"Madhya Ma","time":2.5} ] },
+    { "id": 13, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Ma","time":0.0},{"note":"Madhya Ga","time":0.5},{"note":"Madhya Re","time":1.0},{"note":"Madhya Sa","time":1.5},{"note":"Madhya Re","time":2.0},{"note":"Madhya Ga","time":2.5} ] },
+    { "id": 14, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Ga","time":0.0},{"note":"Madhya Re","time":0.5},{"note":"Madhya Sa","time":1.0},{"note":"Mandra Ni","time":1.5},{"note":"Madhya Sa","time":2.0},{"note":"Madhya Re","time":2.5} ] },
+    { "id": 15, "section": "avroh", "repeat": 4, "notes": [ {"note":"Madhya Re","time":0.0},{"note":"Madhya Sa","time":0.5},{"note":"Mandra Ni","time":1.0},{"note":"Mandra Dha","time":1.5},{"note":"Mandra Ni","time":2.0},{"note":"Madhya Sa","time":2.5} ] }
+  ]
+}

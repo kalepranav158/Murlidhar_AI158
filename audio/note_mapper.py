@@ -8,6 +8,14 @@ INT_TO_NOTE = [
     "Dha", "Komal Ni", "Ni"
 ]
 
+NOTE_TO_INT = {note: index for index, note in enumerate(INT_TO_NOTE)}
+
+OCTAVE_TO_INT = {
+    "Mandra": -1,
+    "Madhya": 0,
+    "Taar": 1,
+}
+
 def freq_to_sargam(freq):
     if freq <= 0:
         return None, None
@@ -36,3 +44,23 @@ def freq_to_sargam(freq):
     cents = 1200 * math.log2(freq / ideal_freq)
 
     return full_note, cents
+
+
+def note_to_freq(note_string):
+    if not isinstance(note_string, str) or not note_string.strip():
+        return None
+
+    parts = note_string.strip().split(" ", 1)
+    if len(parts) == 2:
+        octave_name, swara = parts
+    else:
+        octave_name, swara = "Madhya", parts[0]
+
+    semitone = NOTE_TO_INT.get(swara)
+    octave = OCTAVE_TO_INT.get(octave_name, 0)
+
+    if semitone is None:
+        return None
+
+    absolute_semitones = octave * 12 + semitone
+    return SA_FREQ * (2 ** (absolute_semitones / 12))

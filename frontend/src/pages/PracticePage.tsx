@@ -1,320 +1,283 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   API_BASE_URL,
-  askGuru,
-  getAnalyticsConsistency,
-  getAnalyticsConsistencyDetails,
-  getAnalyticsDashboard,
-  getAnalyticsForecast,
-  getAnalyticsPitchStabilityControl,
-  getAnalyticsRadar,
-  getAnalyticsRecommendationAdaptivePlan,
-  getAnalyticsRisk,
-  getAnalyticsSkillEvolution,
-  getAnalyticsSkillLevel,
-  getAnalyticsSummary,
-  getAnalyticsTestDashboard,
-  getAnalyticsTrend,
-  getAnalyticsWeakestPhrase,
-  getDebugAlankar,
-  getDebugAnalytics,
-  getDebugPhrase,
-  getDebugSessions,
-  getDebugStudent,
-  getRootHealth,
-  getStudentAnalytics,
-  getStudentCurriculum,
-  getStudentProfile,
-  getStudentStreak,
-  submitAlankarPractice,
 } from "../api";
+import { usePracticeSession } from "../hooks/usePracticeSession";
+import { useStudentProfile } from "../hooks/useStudentProfile";
 import ResultCard from "../components/ResultCard";
-import { initialAsyncState, type AsyncState } from "../types/ui";
+import { convertBlobToWavFile } from "../utils/audioToWav";
 
 export default function PracticePage() {
   const [userId, setUserId] = useState("demo_user");
-  const [alankarId, setAlankarId] = useState("basic_alankar");
-  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [mode, setMode] = useState<"alankar" | "song">("alankar");
+  const [inputMethod, setInputMethod] = useState<"upload" | "record">("upload");
+  const [alankarId, setAlankarId] = useState("alankar_1");
   const [songId, setSongId] = useState("song_1");
-  const [debugPhraseId, setDebugPhraseId] = useState(0);
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [tempo, setTempo] = useState(60);
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [question, setQuestion] = useState("How should I improve rhythm stability?");
+  const [recordedWavFile, setRecordedWavFile] = useState<File | null>(null);
+  const [recordedRawFile, setRecordedRawFile] = useState<File | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [recordingPreviewUrl, setRecordingPreviewUrl] = useState<string | null>(null);
 
-  const [profileState, setProfileState] = useState(initialAsyncState<unknown>());
-  const [curriculumState, setCurriculumState] = useState(initialAsyncState<unknown>());
-  const [analyticsState, setAnalyticsState] = useState(initialAsyncState<unknown>());
-  const [streakState, setStreakState] = useState(initialAsyncState<unknown>());
-  const [practiceState, setPracticeState] = useState(initialAsyncState<unknown>());
-  const [analyticsFullState, setAnalyticsFullState] = useState(initialAsyncState<unknown>());
-  const [askState, setAskState] = useState(initialAsyncState<unknown>());
-  const [debugState, setDebugState] = useState(initialAsyncState<unknown>());
-  const [healthState, setHealthState] = useState(initialAsyncState<unknown>());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const { practiceState, submitAlankar, submitSong } = usePracticeSession();
+  const { curriculumState, loadCurriculum } = useStudentProfile();
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
 
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
+  useEffect(() => {
+    return () => {
+      if (recordingPreviewUrl) {
+        URL.revokeObjectURL(recordingPreviewUrl);
+      }
 
-  const onAlankarIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setAlankarId(event.target.value);
-  };
-
-  const onPhraseIndexChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setPhraseIndex(Number(event.target.value || 0));
-  };
-
-  const onSongIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSongId(event.target.value);
-  };
-
-  const onDebugPhraseIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setDebugPhraseId(Number(event.target.value || 0));
-  };
-
-  const onQuestionChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setQuestion(event.target.value);
-  };
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, [recordingPreviewUrl]);
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setAudioFile(event.target.files?.[0] ?? null);
+    setRecordingError(null);
   };
 
-  const runCall = async <T,>(setter: (next: AsyncState<T>) => void, fn: () => Promise<T>) => {
-    setter({ loading: true, error: null, data: null });
+  const startRecording = async () => {
+    setRecordingError(null);
+
     try {
-      const payload = await fn();
-      setter({ loading: false, error: null, data: payload });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const preferredMime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+
+      const recorder = new MediaRecorder(stream, { mimeType: preferredMime });
+      mediaRecorderRef.current = recorder;
+      recordedChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        try {
+          const sourceBlob = new Blob(recordedChunksRef.current, {
+            type: recorder.mimeType || "audio/webm",
+          });
+          const rawExt = (recorder.mimeType || "audio/webm").includes("ogg") ? "ogg" : "webm";
+          const rawFile = new File([sourceBlob], `live-recording.${rawExt}`, {
+            type: recorder.mimeType || "audio/webm",
+          });
+
+          setRecordedRawFile(rawFile);
+
+          try {
+            const wavFile = await convertBlobToWavFile(sourceBlob, "live-recording.wav");
+            setRecordedWavFile(wavFile);
+
+            if (recordingPreviewUrl) {
+              URL.revokeObjectURL(recordingPreviewUrl);
+            }
+            setRecordingPreviewUrl(URL.createObjectURL(wavFile));
+          } catch {
+            setRecordedWavFile(null);
+
+            if (recordingPreviewUrl) {
+              URL.revokeObjectURL(recordingPreviewUrl);
+            }
+            setRecordingPreviewUrl(URL.createObjectURL(rawFile));
+
+            setRecordingError(
+              "Browser WAV conversion failed. Using raw recording file; backend will convert/process it.",
+            );
+          }
+
+          setAudioFile(null);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to process recorded audio.";
+          setRecordingError(message);
+        } finally {
+          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
+      };
+
+      recorder.start();
+      setRecording(true);
+      setRecordedWavFile(null);
+      setRecordedRawFile(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      setter({ loading: false, error: message, data: null });
+      const message = error instanceof Error ? error.message : "Microphone access failed.";
+      setRecordingError(message);
     }
   };
 
-  const onLoadProfile = async () => {
-    await runCall(setProfileState, async () => getStudentProfile(safeUserId));
-  };
-
-  const onLoadCurriculum = async () => {
-    await runCall(setCurriculumState, async () => getStudentCurriculum(safeUserId));
-  };
-
-  const onLoadAnalytics = async () => {
-    await runCall(setAnalyticsState, async () => getStudentAnalytics(safeUserId));
-  };
-
-  const onLoadStreak = async () => {
-    await runCall(setStreakState, async () => getStudentStreak(safeUserId));
-  };
-
-  const onPracticeAlankar = async () => {
-    if (!audioFile) {
-      setPracticeState({ loading: false, error: "Select a WAV file first.", data: null });
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== "recording") {
       return;
     }
 
-    await runCall(setPracticeState, async () =>
-      submitAlankarPractice({
+    mediaRecorderRef.current.stop();
+    setRecording(false);
+  };
+
+  const onSubmitPractice = async () => {
+    const selectedFile = inputMethod === "record" ? (recordedWavFile ?? recordedRawFile) : audioFile;
+
+    if (!selectedFile) {
+      setRecordingError("Provide an upload file or record live audio before submitting.");
+      return;
+    }
+
+    if (mode === "alankar") {
+      try {
+        await submitAlankar({
+          userId: safeUserId,
+          alankarId: alankarId.trim(),
+          phraseIndex,
+          tempo,
+          audioFile: selectedFile,
+        });
+      } catch {
+        return;
+      }
+      return;
+    }
+
+    try {
+      await submitSong({
         userId: safeUserId,
-        alankarId,
+        songId: songId.trim(),
         phraseIndex,
-        audioFile,
-      }),
-    );
+        tempo,
+        audioFile: selectedFile,
+      });
+    } catch {
+      return;
+    }
   };
 
-  const onLoadAnalyticsFullSet = async () => {
-    await runCall(setAnalyticsFullState, async () => {
-      const [
-        summary,
-        trend,
-        skillLevel,
-        consistency,
-        pitchStability,
-        recommendation,
-        consistencyDetails,
-        dashboard,
-        testDashboard,
-        radar,
-        skillEvolution,
-        risk,
-        forecast,
-        weakestPhrase,
-      ] = await Promise.all([
-        getAnalyticsSummary(safeUserId),
-        getAnalyticsTrend(safeUserId),
-        getAnalyticsSkillLevel(safeUserId),
-        getAnalyticsConsistency(safeUserId),
-        getAnalyticsPitchStabilityControl(safeUserId),
-        getAnalyticsRecommendationAdaptivePlan(safeUserId),
-        getAnalyticsConsistencyDetails(safeUserId),
-        getAnalyticsDashboard(safeUserId),
-        getAnalyticsTestDashboard(safeUserId),
-        getAnalyticsRadar(safeUserId),
-        getAnalyticsSkillEvolution(safeUserId),
-        getAnalyticsRisk(safeUserId),
-        getAnalyticsForecast(safeUserId),
-        getAnalyticsWeakestPhrase(safeUserId, songId.trim()),
-      ]);
-
-      return {
-        summary,
-        trend,
-        skillLevel,
-        consistency,
-        pitchStability,
-        recommendation,
-        consistencyDetails,
-        dashboard,
-        testDashboard,
-        radar,
-        skillEvolution,
-        risk,
-        forecast,
-        weakestPhrase,
-      };
-    });
-  };
-
-  const onAskGuru = async () => {
-    await runCall(setAskState, async () =>
-      askGuru(safeUserId, {
-        question: question.trim(),
-      }),
-    );
-  };
-
-  const onLoadDebugSet = async () => {
-    await runCall(setDebugState, async () => {
-      const [sessions, alankar, phrase, analytics, student] = await Promise.all([
-        getDebugSessions(safeUserId),
-        getDebugAlankar(safeUserId, alankarId.trim()),
-        getDebugPhrase(safeUserId, songId.trim(), debugPhraseId),
-        getDebugAnalytics(safeUserId),
-        getDebugStudent(safeUserId),
-      ]);
-
-      return {
-        sessions,
-        alankar,
-        phrase,
-        analytics,
-        student,
-      };
-    });
-  };
-
-  const onCheckHealth = async () => {
-    await runCall(setHealthState, async () => getRootHealth());
+  const onLoadCurriculum = async () => {
+    try {
+      await loadCurriculum(safeUserId);
+    } catch {
+      return;
+    }
   };
 
   return (
     <div className="container">
-      <h1>Frontend Integration Smoke Test</h1>
+      <h1>Practice</h1>
       <p className="muted">Base URL: {API_BASE_URL}</p>
 
       <section className="card">
-        <h2>Request Context</h2>
         <label>
           User ID
-          <input value={userId} onChange={onUserIdChange} />
+          <input value={userId} onChange={(event) => setUserId(event.target.value)} />
         </label>
 
-        <div className="row">
-          <button onClick={onLoadProfile}>Load Profile</button>
-          <button onClick={onLoadCurriculum}>Load Curriculum</button>
-          <button onClick={onLoadAnalytics}>Load Analytics</button>
-          <button onClick={onLoadStreak}>Load Streak</button>
-        </div>
-
-        <section className="grid">
-          <ResultCard title="Profile" state={profileState} />
-          <ResultCard title="Curriculum" state={curriculumState} />
-          <ResultCard title="Analytics" state={analyticsState} />
-          <ResultCard title="Streak" state={streakState} />
-        </section>
-      </section>
-
-      <section className="card">
-        <h2>Practice (WAV Upload)</h2>
         <label>
-          Alankar ID
-          <input value={alankarId} onChange={onAlankarIdChange} />
+          Mode
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value as "alankar" | "song")}
+          >
+            <option value="alankar">Alankar Practice</option>
+            <option value="song">Song Practice</option>
+          </select>
         </label>
+
+        {mode === "alankar" ? (
+          <label>
+            Alankar ID
+            <input value={alankarId} onChange={(event) => setAlankarId(event.target.value)} />
+          </label>
+        ) : (
+          <label>
+            Song ID
+            <input value={songId} onChange={(event) => setSongId(event.target.value)} />
+          </label>
+        )}
+
         <label>
           Phrase Index
           <input
             type="number"
             min={0}
             value={phraseIndex}
-            onChange={onPhraseIndexChange}
+            onChange={(event) => setPhraseIndex(Number(event.target.value || 0))}
           />
         </label>
+
         <label>
-          Song ID (for analytics weakest-phrase & debug phrase)
-          <input value={songId} onChange={onSongIdChange} />
-        </label>
-        <label>
-          Debug Phrase ID
-          <input type="number" min={0} value={debugPhraseId} onChange={onDebugPhraseIdChange} />
-        </label>
-        <label>
-          WAV File
+          Tempo
           <input
-            type="file"
-            accept="audio/wav,.wav"
-            onChange={onFileChange}
+            type="number"
+            min={20}
+            max={220}
+            value={tempo}
+            onChange={(event) => setTempo(Number(event.target.value || 60))}
           />
         </label>
 
-        <div className="row">
-          <button onClick={onPracticeAlankar}>Submit Alankar Practice</button>
-        </div>
-
-        <section className="grid">
-          <ResultCard title="Practice" state={practiceState} />
-        </section>
-      </section>
-
-      <section className="card">
-        <h2>Analytics Endpoint Group</h2>
-        <div className="row">
-          <button onClick={onLoadAnalyticsFullSet}>Load Full Analytics Set</button>
-        </div>
-
-        <section className="grid">
-          <ResultCard title="Analytics (Full Set)" state={analyticsFullState} />
-        </section>
-      </section>
-
-      <section className="card">
-        <h2>Ask Endpoint</h2>
         <label>
-          Question
-          <input value={question} onChange={onQuestionChange} />
+          Input Method
+          <select
+            value={inputMethod}
+            onChange={(event) => {
+              setInputMethod(event.target.value as "upload" | "record");
+              setRecordingError(null);
+            }}
+          >
+            <option value="upload">Upload audio file</option>
+            <option value="record">Record live audio</option>
+          </select>
         </label>
-        <div className="row">
-          <button onClick={onAskGuru}>Ask Guru</button>
-        </div>
 
-        <section className="grid">
-          <ResultCard title="Ask" state={askState} />
-        </section>
+        {inputMethod === "upload" ? (
+          <label>
+            Audio File (wav/mp3/m4a/ogg/flac)
+            <input
+              type="file"
+              accept="audio/*,.wav,.mp3,.mpeg,.m4a,.aac,.ogg,.flac,.webm"
+              onChange={onFileChange}
+            />
+          </label>
+        ) : (
+          <section className="record-box">
+            <p className="muted">Recorded audio is converted to WAV before submission.</p>
+            <div className="row">
+              <button onClick={startRecording} disabled={recording}>Start Recording</button>
+              <button onClick={stopRecording} disabled={!recording}>Stop Recording</button>
+            </div>
+            {recording && <p className="muted">Recording in progress...</p>}
+            {recordedWavFile && <p className="muted">Ready (WAV): {recordedWavFile.name}</p>}
+            {!recordedWavFile && recordedRawFile && (
+              <p className="muted">Ready (raw): {recordedRawFile.name}</p>
+            )}
+            {recordingPreviewUrl && <audio controls src={recordingPreviewUrl} className="audio-preview" />}
+          </section>
+        )}
+
+        {recordingError && <p className="error">{recordingError}</p>}
+
+        <div className="row">
+          <button onClick={onSubmitPractice}>Submit Practice</button>
+          <button onClick={onLoadCurriculum}>Refresh Curriculum Snapshot</button>
+        </div>
       </section>
 
-      <section className="card">
-        <h2>Debug Endpoint Group</h2>
-        <p className="muted">Works only when DEBUG_ENDPOINTS is enabled on backend.</p>
-        <div className="row">
-          <button onClick={onLoadDebugSet}>Load Full Debug Set</button>
-          <button onClick={onCheckHealth}>Check Root Health</button>
-        </div>
-
-        <section className="grid">
-          <ResultCard title="Debug" state={debugState} />
-          <ResultCard title="Health" state={healthState} />
-        </section>
+      <section className="grid">
+        <ResultCard title="Practice Result" state={practiceState} />
+        <ResultCard title="Curriculum Snapshot" state={curriculumState} />
       </section>
     </div>
   );

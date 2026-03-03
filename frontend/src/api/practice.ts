@@ -60,7 +60,7 @@ export const submitFullSongPractice = async (input: {
   audioFile: File;
 }) => {
   const payload = await apiRequest<PracticeApi | MessagePayload>(
-    `/practice/practice/song/full/${encodeURIComponent(input.userId)}/${encodeURIComponent(input.songId)}`,
+    `/practice/song/full/${encodeURIComponent(input.userId)}/${encodeURIComponent(input.songId)}`,
     {
       method: "POST",
       body: appendFile(input.audioFile),

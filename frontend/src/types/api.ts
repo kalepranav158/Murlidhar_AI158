@@ -156,6 +156,7 @@ export type PracticeApi = {
   };
   adaptive_plan?: Record<string, unknown>;
   song_adaptive_plan?: Record<string, unknown>;
+  techniques?: Record<string, unknown>;
   technique_score?: number | null;
   technique_details?: Record<string, unknown>;
   curriculum?: StudentCurriculumApi;
@@ -164,6 +165,14 @@ export type PracticeApi = {
     cents?: number;
     time?: number;
   }>;
+  detected_notes?: Array<{
+    note?: string;
+    cents?: number;
+    time?: number;
+  }>;
+  alignment_debug?: {
+    dtw_transposition_shift_semitones?: number;
+  };
 };
 
 export type AskRequestApi = {

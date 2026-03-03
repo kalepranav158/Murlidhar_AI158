@@ -248,6 +248,7 @@ def test_dashboard(user_id: str):
     return analytics_dashboard(user_id=user_id)
 
 
+@router.get("/radar")
 @router.get("/analytics/radar")
 def radar(user_id: str = Query(...)):
 

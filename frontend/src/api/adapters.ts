@@ -238,6 +238,10 @@ export const normalizePracticeResult = (
         unlockEvent: false,
         rawFeedback: null,
         curriculum: null,
+        detectedNotes: [],
+        alignmentDebug: null,
+        techniques: null,
+        techniqueDetails: null,
       },
       empty: {
         isEmpty: true,
@@ -247,6 +251,28 @@ export const normalizePracticeResult = (
   }
 
   const curriculum = normalizeCurriculum(payload.curriculum).data;
+  const detectedNotesRaw = Array.isArray(payload.detected_notes)
+    ? payload.detected_notes
+    : Array.isArray(payload.played_notes)
+      ? payload.played_notes
+      : [];
+  const detectedNotes = detectedNotesRaw
+    .map((note) => {
+      if (
+        typeof note?.note !== "string" ||
+        typeof note?.cents !== "number" ||
+        typeof note?.time !== "number"
+      ) {
+        return null;
+      }
+
+      return {
+        note: note.note,
+        cents: note.cents,
+        time: note.time,
+      };
+    })
+    .filter((note): note is { note: string; cents: number; time: number } => note !== null);
 
   return {
     data: {
@@ -267,6 +293,24 @@ export const normalizePracticeResult = (
       unlockEvent: Boolean(payload.full_song_unlocked),
       rawFeedback: payload.evaluation?.feedback,
       curriculum: payload.curriculum ? curriculum : null,
+      detectedNotes,
+      alignmentDebug:
+        payload.alignment_debug && typeof payload.alignment_debug === "object"
+          ? {
+              dtwTranspositionShiftSemitones:
+                typeof payload.alignment_debug.dtw_transposition_shift_semitones === "number"
+                  ? payload.alignment_debug.dtw_transposition_shift_semitones
+                  : null,
+            }
+          : null,
+      techniques:
+        payload.techniques && typeof payload.techniques === "object"
+          ? (payload.techniques as Record<string, unknown>)
+          : null,
+      techniqueDetails:
+        payload.technique_details && typeof payload.technique_details === "object"
+          ? (payload.technique_details as Record<string, unknown>)
+          : null,
     },
     empty: {
       isEmpty: false,

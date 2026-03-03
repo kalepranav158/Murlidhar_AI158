@@ -1,5 +1,6 @@
 from fastapi import FastAPI,Request,HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.routes import practice,songs
 import os
 import json
@@ -7,6 +8,7 @@ from app.routes import sessions
 from app.routes import analytics
 from app.routes import ask
 from app.routes import debug
+from app.routes import student
 import logging
 
 logging.basicConfig(
@@ -16,6 +18,17 @@ logging.basicConfig(
 
 
 app = FastAPI(title="Something New")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # always initialize database on startup
@@ -34,6 +47,7 @@ app.include_router(songs.router)
 app.include_router(sessions.router)
 app.include_router(analytics.router)
 app.include_router(ask.router)
+app.include_router(student.router)
 
 DEBUG_ENDPOINTS_ENABLED = os.getenv("DEBUG_ENDPOINTS", "false").lower() == "true"
 if DEBUG_ENDPOINTS_ENABLED:

@@ -48,6 +48,16 @@ export type PracticeResultNormalized = {
   unlockEvent: boolean;
   rawFeedback: unknown;
   curriculum: StudentCurriculumNormalized | null;
+  detectedNotes: Array<{
+    note: string;
+    cents: number;
+    time: number;
+  }>;
+  alignmentDebug: {
+    dtwTranspositionShiftSemitones: number | null;
+  } | null;
+  techniques: Record<string, unknown> | null;
+  techniqueDetails: Record<string, unknown> | null;
 };
 
 export type EmptyState = {

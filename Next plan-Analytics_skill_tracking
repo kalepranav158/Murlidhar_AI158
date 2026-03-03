@@ -1,209 +1,375 @@
-✅ PHASE 1 — PRODUCTION HARDENING
+🧱 1️⃣ Frontend System Structure
+Core Principle
 
-These are mandatory before freeze.
+Frontend should be:
 
-1️⃣ Gate Debug Endpoints
-Current State
+Thin logic
 
-Debug routes always mounted.
+Backend-driven state
 
-Required Fix
+No progression logic in frontend
 
-In app/main.py:
+Stateless UI (backend is source of truth)
 
-import os
+Suggested Stack (Simple + Stable)
 
-DEBUG_ENDPOINTS_ENABLED = os.getenv("DEBUG_ENDPOINTS", "false").lower() == "true"
+You can use:
 
-if DEBUG_ENDPOINTS_ENABLED:
-    app.include_router(debug.router)
-Freeze Criteria
+React (recommended)
 
-DEBUG_ENDPOINTS=false in production
+OR Next.js (if you want routing + SSR)
 
-Verified 404 on /debug/... in prod mode
+Tailwind for UI
 
-2️⃣ Lock Composite Config Validation
+Axios or Fetch for API
 
-Ensure this exists in analytics_config.py:
+🗂 Recommended Folder Structure
+frontend/
+│
+├── src/
+│   ├── api/
+│   │   ├── client.ts              # base URL, timeout, interceptors
+│   │   ├── adapters.ts            # normalize mixed backend shapes
+│   │   ├── practice.ts
+│   │   ├── curriculum.ts
+│   │   ├── analytics.ts
+│   │   ├── sessions.ts
+│   │   └── songs.ts
+│   │
+│   ├── pages/
+│   │   ├── Dashboard.tsx
+│   │   ├── Practice.tsx
+│   │   ├── Curriculum.tsx
+│   │   └── Progress.tsx
+│   │
+│   ├── components/
+│   │   ├── SkillCard.tsx
+│   │   ├── ProgressBar.tsx
+│   │   ├── StreakWidget.tsx
+│   │   ├── AnalyticsChart.tsx
+│   │   ├── TechniqueFeedback.tsx
+│   │   ├── UnlockBadge.tsx
+│   │   └── ScreenState.tsx        # loading / error / empty UI
+│   │
+│   ├── hooks/
+│   │   ├── useStudentProfile.ts
+│   │   ├── usePracticeSession.ts
+│   │   └── useAnalytics.ts
+│   │
+│   └── types/
+│       ├── api.ts
+│       └── normalized.ts
 
-assert abs(sum(COMPOSITE_CONFIG.values()) - 1.0) < 1e-6
-Freeze Criteria
+🧩 2️⃣ Phase 0: API Contract Freeze (MANDATORY)
 
-Config weights validated at startup
+Before frontend implementation, freeze exact v1 contract from current backend routes.
 
-App crashes if invalid weights
+Current route reality (from backend):
 
-3️⃣ Remove or Archive Legacy Mastery Tables
+Practice domain: /practice/*
 
-You mentioned:
+Analytics domain: /analytics/*
 
-alankar_mastery
+Supporting data: /sessions, /songs
 
-phrase_mastery
+Student domain (production wrappers):
 
-Choose One:
+/student/profile
 
-Hard delete migration
-OR
+/student/curriculum
 
-Rename to _legacy_* and block writes
+/student/analytics
 
-Freeze Criteria
+/student/streak
 
-Only skill_progress is authoritative
+Debug domain: /debug/* only when DEBUG_ENDPOINTS is enabled
 
-✅ PHASE 2 — SYSTEM CONSISTENCY TESTS
+Rules:
 
-These verify entire flow, not modules.
+Do NOT use /debug/* as production frontend dependency.
 
-4️⃣ Add One Full Integration Test
+Use /student/* wrappers as the default frontend contract for Dashboard/Curriculum/Progress/Streak data.
 
-Test Flow:
+Freeze for each endpoint:
 
-submit practice
-→ save_session
-→ update_skill_progress
-→ unlock triggered
-→ curriculum updated
-→ streak updated
-→ analytics snapshot saved
-Freeze Criteria
+Request shape
 
-Single test verifies entire chain
+Response success shape
 
-Passes locally
+Fallback/error/message shape
 
-5️⃣ Duplicate Submission Stress Test
+Null/empty behavior
 
-Test:
+Auth/user identity requirement
 
-Submit same session twice
+🧠 3️⃣ Core Frontend Screens (v1)
 
-Expect:
+Keep it minimal and powerful.
 
-First: saved
+1️⃣ Dashboard (Home)
 
-Second: duplicate_rejected
+Shows:
 
-successful_sessions not incremented
+Current level
 
-Freeze Criteria
+Current streak
 
-Idempotency verified
+Composite score snapshot
 
-✅ PHASE 3 — DATA INTEGRITY VALIDATION
+Recommended content
 
-These ensure long-term stability.
+Newly unlocked content badge
 
-6️⃣ Unlock Integrity Audit Script
+Data source:
 
-Run for all users:
+Use frozen non-debug production endpoints only, preferring:
 
-verify_unlock_integrity(user_id, skill_id)
-Freeze Criteria
+GET /student/profile?user_id=...
 
-No violation
+GET /student/analytics?user_id=...
 
-No unlocked skill with <3 successful sessions
+GET /student/streak?user_id=...
 
-7️⃣ Analytics Window Check
+2️⃣ Practice Screen
 
-Query:
+Workflow:
 
-SELECT COUNT(*) FROM analytics_snapshots WHERE user_id=...
-Freeze Criteria
+Upload audio (WAV/MP3/M4A/OGG/FLAC)
+→ Call /practice endpoint
+→ Show:
 
-Max 30 per skill
+Note accuracy
 
-Oldest pruned first
+Pitch stability
 
-8️⃣ Streak Boundary Simulation
+Rhythm stability
 
-Simulate:
+Technique score
 
-Same day double submit
+Adaptive recommendation
 
-Next day increment
+Unlock event (if triggered)
 
-2-day gap reset
+Important:
+Frontend does NOT calculate anything.
+It renders backend result only.
 
-Freeze Criteria
+Audio decision for v1:
 
-Correct streak behavior
+Support both upload and in-browser live recording.
 
-✅ PHASE 4 — PERFORMANCE SANITY
+Content readiness note (songs catalog):
 
-Not optimization — sanity.
+Currently available in `songs/`: `alankar_1` to `alankar_10`.
 
-9️⃣ Load Simulation (Basic)
+Initial beginner pack completion status: done (`alankar_1` to `alankar_10` in consistent JSON structure).
 
-Simulate:
+Recorded audio is converted to WAV client-side when possible.
 
-20 consecutive sessions
+If client-side WAV conversion fails, raw recorded audio is submitted and backend conversion/processing handles it.
 
-Verify:
+3️⃣ Curriculum Screen
 
-No DB lock errors
+Shows:
 
-No duplicate increments
+Unlocked content
 
-No unlock regression
+Locked content
 
-🔟 DB Constraint Verification
+Mastered content
 
-Confirm constraints exist:
+Next goal (composite threshold)
 
-unlock timestamp check
+Everything comes from backend snapshot (GET /student/curriculum?user_id=...).
 
-session_hash uniqueness
+4️⃣ Progress / Analytics Screen
 
-composite_score bounds (if defined)
+Show:
 
-✅ PHASE 5 — DOCUMENTATION FREEZE
+Composite over time
 
-Lock these files:
+Trend slope
 
-SYSTEM_CORE.md
+Consistency index
 
-ARCHITECTURE.md
+Streak chart
 
-IMPLEMENTATION_SUMMARY.md
+Use:
 
-CHANGELOG.md
+analytics snapshots
 
-Add:
+streak/session data
 
-## v1 Backend Freeze
-Date:
-All freeze checklist items completed.
-🎯 BACKEND v1 FREEZE CRITERIA SUMMARY
+Chart library: Recharts / Chart.js
 
-System must satisfy:
+🧬 4️⃣ Frontend State Model (Normalized, Defensive)
 
-Domain	Required State
-Evaluation	Deterministic
-Technique	Compared vs expected
-Composite	Configurable, validated
-Mastery	3-session threshold enforced
-Unlock	Forward-only immutable
-Streak	Timezone safe
-Analytics	Rolling window capped
-Duplicates	Idempotent
-Debug	Gated by env
-Tests	Integration test passes
-🧠 AFTER FREEZE — WHAT YOU DO NOT TOUCH
+Global UI state remains 3 domains, but sourced via adapters.
 
-Once frozen:
+1️⃣ Student Profile (normalized)
+2️⃣ Practice Result (normalized)
+3️⃣ Analytics Snapshot (normalized)
 
-Do not change composite weights casually
+Adapter requirements:
 
-Do not alter unlock threshold
+Handle mixed response shapes.
 
-Do not alter streak logic
+Handle fallback message-only payloads.
 
-Do not change rolling window size
+Apply defaults for missing optional fields.
 
-Do not refactor skill_progress schema
+Map all backend variants to one stable frontend contract.
 
-Only additive changes allowed.
+Never leak raw backend shape directly into page components.
+
+🔐 5️⃣ Frontend Rules (Critical)
+NEVER DO:
+
+Unlock logic in frontend
+
+Mastery counting in frontend
+
+Streak calculations in frontend
+
+Composite recalculation in frontend
+
+Frontend is display only.
+
+🛡️ 6️⃣ Cross-Cutting Concerns (Required for v1)
+
+Auth & identity propagation:
+
+Decide one identity path for all calls (token/header or explicit user param).
+
+Every API call must include consistent user identity context.
+
+Network behavior:
+
+Single API base URL via env (dev/stage/prod).
+
+Request timeout defaults and one retry policy for idempotent GETs.
+
+Centralized error mapping in api/client.ts.
+
+Screen states (every page):
+
+Loading state
+
+Error state with retry action
+
+Empty state with clear guidance
+
+🧭 7️⃣ User Flow (End-to-End)
+Day 1
+
+User logs in
+→ Dashboard loads
+→ Sees recommended alankar
+→ Practices
+→ Receives feedback
+→ Unlock triggered
+→ Dashboard updates
+
+📊 8️⃣ UX Priorities (Pedagogical Alignment)
+
+Because this is a music tutor:
+
+Must visually emphasize:
+
+Rhythm stability
+
+Technique detection
+
+Streak continuity
+
+Unlock reward
+
+Gamification light, discipline heavy.
+
+🧱 9️⃣ Component Design Blueprint
+SkillCard
+
+Shows:
+
+Skill name
+
+Locked/Unlocked/Mastered badge
+
+Composite progress bar
+
+Attempt count
+
+PracticeFeedbackCard
+
+Sections:
+
+Technical Assessment
+
+Corrective Guidance
+
+Structured Practice Plan
+
+Tempo Recommendation
+
+StreakWidget
+
+🔥 Current streak
+
+🏆 Longest streak
+
+“Don’t break the chain”
+
+AnalyticsChart
+
+Composite over last 30 sessions
+
+Highlight plateau zone
+
+🚀 🔟 Implementation Milestone Order (Updated)
+
+Milestone 0: API contract freeze + endpoint/schema checklist.
+
+Milestone 1: API adapter layer + defensive normalized types.
+
+Milestone 2: Practice page (highest learning loop value).
+
+Milestone 3: Dashboard page.
+
+Milestone 4: Progress page (analytics + sessions trend).
+
+Milestone 5: Curriculum page.
+
+After each milestone:
+
+Validate loading/error/empty states.
+
+Confirm no frontend progression logic has leaked in.
+
+✅ Current implementation status (now)
+
+Milestone 0 complete: production contracts available (`/student/*` wrappers).
+
+Milestone 1 complete: API client + adapters + normalized types implemented.
+
+Milestone 2 complete: dedicated Practice page with backend-driven evaluation rendering.
+
+Milestone 3 complete: Dashboard page implemented with profile + streak + analytics snapshot.
+
+Milestone 4 complete: Progress page implemented with trend/consistency/composite indicators.
+
+Milestone 5 complete: Curriculum page implemented with unlocked/locked/mastered/next-goal view.
+
+Diagnostics coverage added in separate page for full analytics/debug/ask endpoint validation.
+
+🧠 1️⃣1️⃣ Frontend Scalability Plan
+
+v1 → Minimal UI
+v2 → Add:
+
+Raga-based modules
+
+Technique breakdown charts
+
+Practice history timeline
+
+AI replay comparison visualization

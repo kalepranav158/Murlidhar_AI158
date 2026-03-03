@@ -24,6 +24,48 @@ from app.services.llm.feedback_llm import _normalize_llm_feedback
 logger = logging.getLogger(__name__)
 
 
+def _nearest_played_note(played_notes, target_time):
+    if not played_notes:
+        return None
+    return min(
+        played_notes,
+        key=lambda note: abs(float(note.get("time", 0.0)) - float(target_time)),
+    )
+
+
+def _annotate_detected_techniques(techniques, played_notes):
+    if not isinstance(techniques, dict):
+        return techniques
+
+    enriched = {
+        "meend": [],
+        "gamak": [],
+    }
+
+    for meend in techniques.get("meend", []) or []:
+        start_time = float(meend.get("start_time", 0.0))
+        end_time = float(meend.get("end_time", start_time))
+        start_note = _nearest_played_note(played_notes, start_time)
+        end_note = _nearest_played_note(played_notes, end_time)
+
+        item = dict(meend)
+        item["from_note"] = start_note.get("note") if start_note else None
+        item["to_note"] = end_note.get("note") if end_note else None
+        enriched["meend"].append(item)
+
+    for gamak in techniques.get("gamak", []) or []:
+        start_time = float(gamak.get("start_time", 0.0))
+        end_time = float(gamak.get("end_time", start_time))
+        center_time = (start_time + end_time) / 2.0
+        center_note = _nearest_played_note(played_notes, center_time)
+
+        item = dict(gamak)
+        item["center_note"] = center_note.get("note") if center_note else None
+        enriched["gamak"].append(item)
+
+    return enriched
+
+
 async def evaluate_alankar(
     user_id: str,
     upload_file,
@@ -100,10 +142,6 @@ async def evaluate_alankar(
     rhythm_index = max(0, 1 - (result["avg_timing_error_sec"] / 1))
     consistency_index = 1  # single session
 
-    # Gate technique detection on accuracy (skip if performance too poor)
-    if result["note_accuracy"] < 40 or result["avg_pitch_error_cents"] > 25:
-        techniques = {"meend": [], "gamak": []}
-
     # Technique comparison with reference (phrase-level expectation)
     try:
         technique_cmp = compare_with_reference(techniques, phrase, played, alignment_indices)
@@ -112,6 +150,8 @@ async def evaluate_alankar(
         logger.exception("Technique comparison failed")
         technique_cmp = {"technique_score": 0.0, "details": {}}
         technique_score = 0.0
+
+    enriched_techniques = _annotate_detected_techniques(techniques, played)
 
     composite_score = (
         0.4 * (result["note_accuracy"] / 100) +
@@ -208,11 +248,23 @@ async def evaluate_alankar(
         if list_key in curriculum_info:
             curriculum_info[list_key] = [x for x in curriculum_info[list_key] if isinstance(x, str)]
 
+    detected_notes = [
+        {
+            "note": n["note"],
+            "cents": float(n["cents"]),
+            "time": float(n["time"])
+        }
+        for n in played
+    ]
+
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
         "alankar_level": level_info,
         "dtw_cost": float(cost),
+        "alignment_debug": {
+            "dtw_transposition_shift_semitones": result.get("dtw_transposition_shift_semitones", 0),
+        },
         "evaluation": {
             "note_accuracy": result["note_accuracy"],
             "avg_pitch_error_cents": result["avg_pitch_error_cents"],
@@ -220,18 +272,12 @@ async def evaluate_alankar(
             "mistakes": result["mistakes"],
             "feedback": ai_feedback,
         },
-        "techniques": techniques,
+        "techniques": enriched_techniques,
         "technique_score": result.get("technique_score", 0.0),
         "technique_details": result.get("technique_details", {}),
         "adaptive_plan": adaptive_plan,
-        "played_notes": [
-            {
-                "note": n["note"],
-                "cents": float(n["cents"]),
-                "time": float(n["time"])
-            }
-            for n in played
-        ],
+        "played_notes": detected_notes,
+        "detected_notes": detected_notes,
         "curriculum": curriculum_info
     }
 
@@ -313,10 +359,6 @@ async def evaluate_song(
     rhythm_index = max(0, 1 - (result["avg_timing_error_sec"] / 1))
     consistency_index = 1  # single session
 
-    # Gate technique detection on accuracy (skip if performance too poor)
-    if result["note_accuracy"] < 40 or result["avg_pitch_error_cents"] > 25:
-        techniques = {"meend": [], "gamak": []}
-
     # Technique comparison with reference (phrase-level expectation)
     try:
         technique_cmp = compare_with_reference(techniques, phrase, played, alignment_indices)
@@ -325,6 +367,8 @@ async def evaluate_song(
         logger.exception("Technique comparison failed")
         technique_cmp = {"technique_score": 0.0, "details": {}}
         technique_score = 0.0
+
+    enriched_techniques = _annotate_detected_techniques(techniques, played)
 
     composite_score = (
         0.4 * (result["note_accuracy"] / 100) +
@@ -426,10 +470,22 @@ async def evaluate_song(
         if list_key in curriculum_info:
             curriculum_info[list_key] = [x for x in curriculum_info[list_key] if isinstance(x, str)]
 
+    detected_notes = [
+        {
+            "note": n["note"],
+            "cents": float(n["cents"]),
+            "time": float(n["time"])
+        }
+        for n in played
+    ]
+
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
         "dtw_cost": float(cost),
+        "alignment_debug": {
+            "dtw_transposition_shift_semitones": result.get("dtw_transposition_shift_semitones", 0),
+        },
         "evaluation": {
             "note_accuracy": result["note_accuracy"],
             "avg_pitch_error_cents": result["avg_pitch_error_cents"],
@@ -437,20 +493,14 @@ async def evaluate_song(
             "mistakes": result["mistakes"],
             "feedback": ai_feedback,
         },
-        "techniques": techniques,
+        "techniques": enriched_techniques,
         "technique_score": result.get("technique_score", 0.0),
         "technique_details": result.get("technique_details", {}),
         "adaptive_plan": adaptive_plan,
         "song_adaptive_plan": song_adaptive_plan,
         "full_song_unlocked": full_song_unlocked,
-        "played_notes": [
-            {
-                "note": n["note"],
-                "cents": float(n["cents"]),
-                "time": float(n["time"])
-            }
-            for n in played
-        ],
+        "played_notes": detected_notes,
+        "detected_notes": detected_notes,
         "curriculum": curriculum_info
     }
 
@@ -497,20 +547,33 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     # no phrase-level reference available for full song
     technique_cmp = compare_with_reference(techniques, {}, played, alignment_indices)
     technique_score = float(technique_cmp.get("technique_score", 0.0))
+    enriched_techniques = _annotate_detected_techniques(techniques, played)
 
     # ensure session result carries technique score for downstream analytics
     result["technique_score"] = round(technique_score, 3)
 
     save_session(user_id=user_id, reference=full_reference, played=played, result=result)
 
+    detected_notes = [
+        {
+            "note": n["note"],
+            "cents": float(n["cents"]),
+            "time": float(n["time"])
+        }
+        for n in played
+    ]
+
     # Full-song adaptive logic can be added later
     return {
         "mode": "full_song",
         "song": song["title"],
         "dtw_cost": float(cost),
+        "alignment_debug": {
+            "dtw_transposition_shift_semitones": result.get("dtw_transposition_shift_semitones", 0),
+        },
         "transition_score": transition_score,
         "flow_score": flow_score,
-        "techniques": techniques,
+        "techniques": enriched_techniques,
         "technique_score": technique_score,
         "evaluation": {
             "note_accuracy": result["note_accuracy"],
@@ -518,7 +581,8 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
             "avg_timing_error_sec": result["avg_timing_error_sec"],
             "mistakes": result["mistakes"],
         },
-        "played_notes": played
+        "played_notes": detected_notes,
+        "detected_notes": detected_notes,
     }
 
 

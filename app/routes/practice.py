@@ -59,6 +59,7 @@ async def practice_song(
     )
 
     
+@router.post("/song/full/{user_id}/{song_id}")
 @router.post("/practice/song/full/{user_id}/{song_id}")
 async def practice_song_full(user_id: str, song_id: str, file: UploadFile):
     return await evaluate_song_full(user_id, file, song_id, tempo=60)

@@ -20,24 +20,40 @@ def split_note(note_string):
     return octave, base_note
 
 
-def note_distance(ref, play):
-    ref_oct, ref_note = split_note(ref["note"])
-    play_oct, play_note = split_note(play["note"])
+def note_to_index(note_string):
+    octave, base_note = split_note(note_string)
+    base = NOTE_TO_INT.get(base_note)
+    if base is None:
+        return None
+    return (OCTAVE_TO_INT.get(octave, 0) * 12) + base
 
-    # Base note difference
-    note_diff = abs(
-        NOTE_TO_INT.get(ref_note, 0) -
-        NOTE_TO_INT.get(play_note, 0)
-    ) / 12.0
 
-    # Octave difference penalty
-    octave_diff = abs(
-        OCTAVE_TO_INT.get(ref_oct, 0) -
-        OCTAVE_TO_INT.get(play_oct, 0)
-    )
+def note_distance(ref, play, transposition_shift: int = 0):
+    ref_idx = note_to_index(ref.get("note", ""))
+    play_idx = note_to_index(play.get("note", ""))
+
+    if ref_idx is not None and play_idx is not None:
+        play_adjusted = play_idx - transposition_shift
+        semitone_diff = abs(ref_idx - play_adjusted)
+        note_diff = min(semitone_diff, 12) / 12.0
+        octave_diff = abs((ref_idx // 12) - (play_adjusted // 12))
+    else:
+        ref_oct, ref_note = split_note(ref.get("note", ""))
+        play_oct, play_note = split_note(play.get("note", ""))
+
+        note_diff = abs(
+            NOTE_TO_INT.get(ref_note, 0) -
+            NOTE_TO_INT.get(play_note, 0)
+        ) / 12.0
+
+        octave_diff = abs(
+            OCTAVE_TO_INT.get(ref_oct, 0) -
+            OCTAVE_TO_INT.get(play_oct, 0)
+        )
 
     # Pitch fine tuning
-    pitch_penalty = min(abs(play["cents"]) / 50.0, 1.0)
+    cents = play.get("cents", 0.0)
+    pitch_penalty = min(abs(cents) / 50.0, 1.0)
 
     return (
         0.6 * note_diff +

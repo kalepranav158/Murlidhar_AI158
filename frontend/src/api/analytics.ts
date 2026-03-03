@@ -85,7 +85,7 @@ export const getAnalyticsTestDashboard = async (userId: string) => {
 };
 
 export const getAnalyticsRadar = async (userId: string) => {
-  return apiRequest<Record<string, unknown> | MessagePayload>("/analytics/analytics/radar", {
+  return apiRequest<Record<string, unknown> | MessagePayload>("/analytics/radar", {
     method: "GET",
     query: { user_id: userId },
   });
