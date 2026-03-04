@@ -6,7 +6,10 @@ import {
 import { usePracticeSession } from "../hooks/usePracticeSession";
 import { useStudentProfile } from "../hooks/useStudentProfile";
 import ResultCard from "../components/ResultCard";
+import ScreenState from "../components/ScreenState";
 import { convertBlobToWavFile } from "../utils/audioToWav";
+import { emitPracticeRefreshSignal } from "../utils/practiceRefreshSignal";
+import { PracticeStudioPanel } from "../modules/practice-studio";
 
 export default function PracticePage() {
   const [userId, setUserId] = useState("demo_user");
@@ -146,6 +149,7 @@ export default function PracticePage() {
           tempo,
           audioFile: selectedFile,
         });
+        emitPracticeRefreshSignal(safeUserId);
       } catch {
         return;
       }
@@ -160,6 +164,7 @@ export default function PracticePage() {
         tempo,
         audioFile: selectedFile,
       });
+      emitPracticeRefreshSignal(safeUserId);
     } catch {
       return;
     }
@@ -175,7 +180,7 @@ export default function PracticePage() {
 
   return (
     <div className="container">
-      <h1>Practice</h1>
+      <h1>Practice Studio</h1>
       <p className="muted">Base URL: {API_BASE_URL}</p>
 
       <section className="card">
@@ -276,7 +281,20 @@ export default function PracticePage() {
       </section>
 
       <section className="grid">
-        <ResultCard title="Practice Result" state={practiceState} />
+        <article className="result-card studio-card">
+          <h3>Practice Studio</h3>
+          <ScreenState
+            loading={practiceState.loading}
+            error={practiceState.error}
+            emptyMessage={
+              practiceState.data?.empty.isEmpty ? practiceState.data.empty.message ?? undefined : undefined
+            }
+          />
+
+          {!practiceState.loading && !practiceState.error && practiceState.data && !practiceState.data.empty.isEmpty && (
+            <PracticeStudioPanel userId={safeUserId} practice={practiceState.data.data} />
+          )}
+        </article>
         <ResultCard title="Curriculum Snapshot" state={curriculumState} />
       </section>
     </div>

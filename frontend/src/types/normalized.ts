@@ -37,6 +37,34 @@ export type AnalyticsSnapshotNormalized = {
   risk: boolean;
 };
 
+export type SkillRadarNormalized = {
+  pitch: number;
+  rhythm: number;
+  technique: number;
+  consistency: number;
+  progress: number;
+  composite: number;
+  techniqueSource: "radar" | "sessions" | "fallback";
+  progressSource: "radar" | "analytics" | "fallback";
+};
+
+export type PracticeHistorySessionNormalized = {
+  id: number | null;
+  timestamp: string | null;
+  noteAccuracy: number | null;
+  compositeScore: number | null;
+  pitchIndex: number | null;
+  rhythmIndex: number | null;
+  consistencyIndex: number | null;
+  techniqueScore: number | null;
+};
+
+export type PracticeHistoryNormalized = {
+  sessions: PracticeHistorySessionNormalized[];
+  unlockDelta: number;
+  unlockedContentCount: number;
+};
+
 export type PracticeResultNormalized = {
   song: string | null;
   phraseIndex: number | null;
@@ -45,12 +73,25 @@ export type PracticeResultNormalized = {
   avgTimingErrorSec: number | null;
   techniqueScore: number | null;
   adaptivePlanSummary: string | null;
+  recommendedTempo: number | null;
+  songRecommendedTempo: number | null;
+  focusArea: string | null;
+  focusPhrase: number | null;
+  targetDrill: string | null;
+  exerciseMode: string | null;
+  variationStrategy: string | null;
+  tempoFeedback: string | null;
+  songRecommendation: string | null;
   unlockEvent: boolean;
   rawFeedback: unknown;
   curriculum: StudentCurriculumNormalized | null;
   detectedNotes: Array<{
     note: string;
     cents: number;
+    time: number;
+  }>;
+  referenceNotes: Array<{
+    note: string;
     time: number;
   }>;
   alignmentDebug: {

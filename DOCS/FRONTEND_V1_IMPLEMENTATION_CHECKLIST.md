@@ -6,6 +6,10 @@
 - Do not depend on `/debug/*` for production.
 - v1 audio path supports **file upload and live recording**. Uploaded/recorded audio is converted to WAV before processing.
 
+### v2 Continuation References
+- `DOCS/FRONTEND_ARCHITECTURE_V2.md`
+- `DOCS/FRONTEND_V2_IMPLEMENTATION_PLAN.md`
+
 ---
 
 ## 1) Current Backend Endpoint Inventory (Verified)

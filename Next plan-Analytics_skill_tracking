@@ -1,375 +1,77 @@
-🧱 1️⃣ Frontend System Structure
-Core Principle
+🚀 NEXT DEVELOPMENT PLAN
+Phase V2.1 (Immediate)
 
-Frontend should be:
+Complete UI modules:
 
-Thin logic
+practice-studio
+skill-radar
+practice-history
+technique-visualizer
+adaptive-coach
+Phase V2.2 (Content Expansion)
 
-Backend-driven state
+Add new content types:
 
-No progression logic in frontend
+melody_1.json
+melody_2.json
+melody_3.json
 
-Stateless UI (backend is source of truth)
+Structure:
 
-Suggested Stack (Simple + Stable)
+songs/
+  alankar_1
+  alankar_2
+  melody_1
+  melody_2
+  melody_3
+Phase V2.3 (Learning Engine Upgrade)
 
-You can use:
+Add:
 
-React (recommended)
+skill profile builder
+learning difficulty estimator
+practice recommendation engine
 
-OR Next.js (if you want routing + SSR)
+Example recommendation:
 
-Tailwind for UI
+You struggle with rhythm → assign rhythm drills
+You struggle with pitch → assign slow alankars
+Phase V2.4 (Studio Intelligence)
 
-Axios or Fetch for API
+Add real-time visual feedback:
 
-🗂 Recommended Folder Structure
-frontend/
-│
-├── src/
-│   ├── api/
-│   │   ├── client.ts              # base URL, timeout, interceptors
-│   │   ├── adapters.ts            # normalize mixed backend shapes
-│   │   ├── practice.ts
-│   │   ├── curriculum.ts
-│   │   ├── analytics.ts
-│   │   ├── sessions.ts
-│   │   └── songs.ts
-│   │
-│   ├── pages/
-│   │   ├── Dashboard.tsx
-│   │   ├── Practice.tsx
-│   │   ├── Curriculum.tsx
-│   │   └── Progress.tsx
-│   │
-│   ├── components/
-│   │   ├── SkillCard.tsx
-│   │   ├── ProgressBar.tsx
-│   │   ├── StreakWidget.tsx
-│   │   ├── AnalyticsChart.tsx
-│   │   ├── TechniqueFeedback.tsx
-│   │   ├── UnlockBadge.tsx
-│   │   └── ScreenState.tsx        # loading / error / empty UI
-│   │
-│   ├── hooks/
-│   │   ├── useStudentProfile.ts
-│   │   ├── usePracticeSession.ts
-│   │   └── useAnalytics.ts
-│   │
-│   └── types/
-│       ├── api.ts
-│       └── normalized.ts
+pitch curve vs reference
+timing markers
+technique markers
 
-🧩 2️⃣ Phase 0: API Contract Freeze (MANDATORY)
+You already planned this in practice studio.
 
-Before frontend implementation, freeze exact v1 contract from current backend routes.
+📈 FINAL SYSTEM TRAJECTORY
 
-Current route reality (from backend):
+Your system evolution:
 
-Practice domain: /practice/*
+V1 → Evaluator
+V2 → Interactive tutor
+V3 → Intelligent learning system
 
-Analytics domain: /analytics/*
+You are currently entering V2 stage.
 
-Supporting data: /sessions, /songs
+⭐ MY HONEST ASSESSMENT
 
-Student domain (production wrappers):
+This project is already strong enough for:
 
-/student/profile
+Final year project
 
-/student/curriculum
+Research prototype
 
-/student/analytics
+AI music education demo
 
-/student/streak
+Because it includes:
 
-Debug domain: /debug/* only when DEBUG_ENDPOINTS is enabled
+DSP
+ML alignment (DTW)
+skill modeling
+adaptive learning
+visual feedback
 
-Rules:
-
-Do NOT use /debug/* as production frontend dependency.
-
-Use /student/* wrappers as the default frontend contract for Dashboard/Curriculum/Progress/Streak data.
-
-Freeze for each endpoint:
-
-Request shape
-
-Response success shape
-
-Fallback/error/message shape
-
-Null/empty behavior
-
-Auth/user identity requirement
-
-🧠 3️⃣ Core Frontend Screens (v1)
-
-Keep it minimal and powerful.
-
-1️⃣ Dashboard (Home)
-
-Shows:
-
-Current level
-
-Current streak
-
-Composite score snapshot
-
-Recommended content
-
-Newly unlocked content badge
-
-Data source:
-
-Use frozen non-debug production endpoints only, preferring:
-
-GET /student/profile?user_id=...
-
-GET /student/analytics?user_id=...
-
-GET /student/streak?user_id=...
-
-2️⃣ Practice Screen
-
-Workflow:
-
-Upload audio (WAV/MP3/M4A/OGG/FLAC)
-→ Call /practice endpoint
-→ Show:
-
-Note accuracy
-
-Pitch stability
-
-Rhythm stability
-
-Technique score
-
-Adaptive recommendation
-
-Unlock event (if triggered)
-
-Important:
-Frontend does NOT calculate anything.
-It renders backend result only.
-
-Audio decision for v1:
-
-Support both upload and in-browser live recording.
-
-Content readiness note (songs catalog):
-
-Currently available in `songs/`: `alankar_1` to `alankar_10`.
-
-Initial beginner pack completion status: done (`alankar_1` to `alankar_10` in consistent JSON structure).
-
-Recorded audio is converted to WAV client-side when possible.
-
-If client-side WAV conversion fails, raw recorded audio is submitted and backend conversion/processing handles it.
-
-3️⃣ Curriculum Screen
-
-Shows:
-
-Unlocked content
-
-Locked content
-
-Mastered content
-
-Next goal (composite threshold)
-
-Everything comes from backend snapshot (GET /student/curriculum?user_id=...).
-
-4️⃣ Progress / Analytics Screen
-
-Show:
-
-Composite over time
-
-Trend slope
-
-Consistency index
-
-Streak chart
-
-Use:
-
-analytics snapshots
-
-streak/session data
-
-Chart library: Recharts / Chart.js
-
-🧬 4️⃣ Frontend State Model (Normalized, Defensive)
-
-Global UI state remains 3 domains, but sourced via adapters.
-
-1️⃣ Student Profile (normalized)
-2️⃣ Practice Result (normalized)
-3️⃣ Analytics Snapshot (normalized)
-
-Adapter requirements:
-
-Handle mixed response shapes.
-
-Handle fallback message-only payloads.
-
-Apply defaults for missing optional fields.
-
-Map all backend variants to one stable frontend contract.
-
-Never leak raw backend shape directly into page components.
-
-🔐 5️⃣ Frontend Rules (Critical)
-NEVER DO:
-
-Unlock logic in frontend
-
-Mastery counting in frontend
-
-Streak calculations in frontend
-
-Composite recalculation in frontend
-
-Frontend is display only.
-
-🛡️ 6️⃣ Cross-Cutting Concerns (Required for v1)
-
-Auth & identity propagation:
-
-Decide one identity path for all calls (token/header or explicit user param).
-
-Every API call must include consistent user identity context.
-
-Network behavior:
-
-Single API base URL via env (dev/stage/prod).
-
-Request timeout defaults and one retry policy for idempotent GETs.
-
-Centralized error mapping in api/client.ts.
-
-Screen states (every page):
-
-Loading state
-
-Error state with retry action
-
-Empty state with clear guidance
-
-🧭 7️⃣ User Flow (End-to-End)
-Day 1
-
-User logs in
-→ Dashboard loads
-→ Sees recommended alankar
-→ Practices
-→ Receives feedback
-→ Unlock triggered
-→ Dashboard updates
-
-📊 8️⃣ UX Priorities (Pedagogical Alignment)
-
-Because this is a music tutor:
-
-Must visually emphasize:
-
-Rhythm stability
-
-Technique detection
-
-Streak continuity
-
-Unlock reward
-
-Gamification light, discipline heavy.
-
-🧱 9️⃣ Component Design Blueprint
-SkillCard
-
-Shows:
-
-Skill name
-
-Locked/Unlocked/Mastered badge
-
-Composite progress bar
-
-Attempt count
-
-PracticeFeedbackCard
-
-Sections:
-
-Technical Assessment
-
-Corrective Guidance
-
-Structured Practice Plan
-
-Tempo Recommendation
-
-StreakWidget
-
-🔥 Current streak
-
-🏆 Longest streak
-
-“Don’t break the chain”
-
-AnalyticsChart
-
-Composite over last 30 sessions
-
-Highlight plateau zone
-
-🚀 🔟 Implementation Milestone Order (Updated)
-
-Milestone 0: API contract freeze + endpoint/schema checklist.
-
-Milestone 1: API adapter layer + defensive normalized types.
-
-Milestone 2: Practice page (highest learning loop value).
-
-Milestone 3: Dashboard page.
-
-Milestone 4: Progress page (analytics + sessions trend).
-
-Milestone 5: Curriculum page.
-
-After each milestone:
-
-Validate loading/error/empty states.
-
-Confirm no frontend progression logic has leaked in.
-
-✅ Current implementation status (now)
-
-Milestone 0 complete: production contracts available (`/student/*` wrappers).
-
-Milestone 1 complete: API client + adapters + normalized types implemented.
-
-Milestone 2 complete: dedicated Practice page with backend-driven evaluation rendering.
-
-Milestone 3 complete: Dashboard page implemented with profile + streak + analytics snapshot.
-
-Milestone 4 complete: Progress page implemented with trend/consistency/composite indicators.
-
-Milestone 5 complete: Curriculum page implemented with unlocked/locked/mastered/next-goal view.
-
-Diagnostics coverage added in separate page for full analytics/debug/ask endpoint validation.
-
-🧠 1️⃣1️⃣ Frontend Scalability Plan
-
-v1 → Minimal UI
-v2 → Add:
-
-Raga-based modules
-
-Technique breakdown charts
-
-Practice history timeline
-
-AI replay comparison visualization
+Most music tutor apps do not have this architecture.

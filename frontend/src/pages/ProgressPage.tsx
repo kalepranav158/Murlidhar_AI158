@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import ScreenState from "../components/ScreenState";
 import { useAnalytics } from "../hooks/useAnalytics";
@@ -6,6 +6,7 @@ import { useAnalytics } from "../hooks/useAnalytics";
 export default function ProgressPage() {
   const [userId, setUserId] = useState("demo_user");
   const { analyticsState, trendState, loadProgress } = useAnalytics();
+  const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
 
@@ -20,6 +21,15 @@ export default function ProgressPage() {
       return;
     }
   };
+
+  useEffect(() => {
+    if (!safeUserId || hasLoadedOnVisitRef.current) {
+      return;
+    }
+
+    hasLoadedOnVisitRef.current = true;
+    void loadProgress(safeUserId).catch(() => undefined);
+  }, [loadProgress, safeUserId]);
 
   const analytics = analyticsState.data?.data;
   const trendSeries =
@@ -37,7 +47,7 @@ export default function ProgressPage() {
           <input value={userId} onChange={onUserIdChange} />
         </label>
         <div className="row">
-          <button onClick={onLoadProgress}>Load Progress</button>
+          <button onClick={onLoadProgress}>Refresh Progress</button>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import type {
   AnalyticsConsistencyApi,
   AnalyticsConsistencyDetailsApi,
   AnalyticsPitchStabilityApi,
+  AnalyticsRadarApi,
   AnalyticsRecommendationApi,
   AnalyticsSkillLevelApi,
   AnalyticsSummaryApi,
@@ -85,7 +86,7 @@ export const getAnalyticsTestDashboard = async (userId: string) => {
 };
 
 export const getAnalyticsRadar = async (userId: string) => {
-  return apiRequest<Record<string, unknown> | MessagePayload>("/analytics/radar", {
+  return apiRequest<AnalyticsRadarApi | MessagePayload | null>("/analytics/radar", {
     method: "GET",
     query: { user_id: userId },
   });

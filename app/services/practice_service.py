@@ -257,6 +257,15 @@ async def evaluate_alankar(
         for n in played
     ]
 
+    reference_notes = [
+        {
+            "note": str(n.get("note", "")),
+            "time": float(n.get("time", 0.0)),
+        }
+        for n in reference
+        if isinstance(n, dict)
+    ]
+
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
@@ -278,6 +287,7 @@ async def evaluate_alankar(
         "adaptive_plan": adaptive_plan,
         "played_notes": detected_notes,
         "detected_notes": detected_notes,
+        "reference_notes": reference_notes,
         "curriculum": curriculum_info
     }
 
@@ -479,6 +489,15 @@ async def evaluate_song(
         for n in played
     ]
 
+    reference_notes = [
+        {
+            "note": str(n.get("note", "")),
+            "time": float(n.get("time", 0.0)),
+        }
+        for n in reference
+        if isinstance(n, dict)
+    ]
+
     return {
         "song": song["title"],
         "phrase_index": phrase_index,
@@ -501,6 +520,7 @@ async def evaluate_song(
         "full_song_unlocked": full_song_unlocked,
         "played_notes": detected_notes,
         "detected_notes": detected_notes,
+        "reference_notes": reference_notes,
         "curriculum": curriculum_info
     }
 
@@ -563,6 +583,15 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
         for n in played
     ]
 
+    reference_notes = [
+        {
+            "note": str(n.get("note", "")),
+            "time": float(n.get("time", 0.0)),
+        }
+        for n in full_reference
+        if isinstance(n, dict)
+    ]
+
     # Full-song adaptive logic can be added later
     return {
         "mode": "full_song",
@@ -583,6 +612,7 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
         },
         "played_notes": detected_notes,
         "detected_notes": detected_notes,
+        "reference_notes": reference_notes,
     }
 
 

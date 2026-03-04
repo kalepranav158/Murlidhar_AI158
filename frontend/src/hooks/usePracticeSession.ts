@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { submitAlankarPractice, submitFullSongPractice, submitSongPractice } from "../api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
+import type { ApiResult, PracticeResultNormalized } from "../types/normalized";
 
 export function usePracticeSession() {
-  const [practiceState, setPracticeState] = useState<AsyncState<unknown>>(initialAsyncState());
+  const [practiceState, setPracticeState] =
+    useState<AsyncState<ApiResult<PracticeResultNormalized>>>(initialAsyncState());
 
   const submitAlankar = async (input: {
     userId: string;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import ScreenState from "../components/ScreenState";
 import { useAnalytics } from "../hooks/useAnalytics";
@@ -8,6 +8,7 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState("demo_user");
   const { profileState, streakState, loadProfile, loadStreak } = useStudentProfile();
   const { analyticsState, loadAnalytics } = useAnalytics();
+  const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
 
@@ -27,6 +28,19 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => {
+    if (!safeUserId || hasLoadedOnVisitRef.current) {
+      return;
+    }
+
+    hasLoadedOnVisitRef.current = true;
+    void Promise.all([
+      loadProfile(safeUserId),
+      loadAnalytics(safeUserId),
+      loadStreak(safeUserId),
+    ]).catch(() => undefined);
+  }, [loadAnalytics, loadProfile, loadStreak, safeUserId]);
+
   const profile = profileState.data?.data;
   const analytics = analyticsState.data?.data;
   const streak = streakState.data?.data;
@@ -41,7 +55,7 @@ export default function DashboardPage() {
           <input value={userId} onChange={onUserIdChange} />
         </label>
         <div className="row">
-          <button onClick={onLoadDashboard}>Load Dashboard</button>
+          <button onClick={onLoadDashboard}>Refresh Dashboard</button>
         </div>
       </section>
 

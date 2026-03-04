@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { getAnalyticsTrend, getStudentAnalytics } from "../api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
 import type { AnalyticsTrendApi, MessagePayload } from "../types/api";
@@ -10,7 +10,7 @@ export function useAnalytics() {
   const [trendState, setTrendState] =
     useState<AsyncState<AnalyticsTrendApi | MessagePayload>>(initialAsyncState());
 
-  const loadAnalytics = async (userId: string) => {
+  const loadAnalytics = useCallback(async (userId: string) => {
     setAnalyticsState({ loading: true, error: null, data: null });
     try {
       const payload = await getStudentAnalytics(userId);
@@ -21,9 +21,9 @@ export function useAnalytics() {
       setAnalyticsState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
-  const loadTrend = async (userId: string) => {
+  const loadTrend = useCallback(async (userId: string) => {
     setTrendState({ loading: true, error: null, data: null });
     try {
       const payload = await getAnalyticsTrend(userId);
@@ -34,9 +34,9 @@ export function useAnalytics() {
       setTrendState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
-  const loadProgress = async (userId: string) => {
+  const loadProgress = useCallback(async (userId: string) => {
     setAnalyticsState({ loading: true, error: null, data: null });
     setTrendState({ loading: true, error: null, data: null });
 
@@ -55,7 +55,7 @@ export function useAnalytics() {
       setTrendState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
   return {
     analyticsState,

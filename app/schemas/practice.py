@@ -10,6 +10,11 @@ class PlayedNote(BaseModel):
     time: float
 
 
+class ReferenceNote(BaseModel):
+    note: str
+    time: float
+
+
 class EvaluationResult(BaseModel):   # -> this is used in PracticeResponse just below 
     note_accuracy: float
     avg_pitch_error_cents: Optional[float]
@@ -43,6 +48,7 @@ class PracticeResponse(BaseModel):
     full_song_unlocked: bool = False
     played_notes: List[PlayedNote]
     detected_notes: Optional[List[PlayedNote]] = None
+    reference_notes: Optional[List[ReferenceNote]] = None
     curriculum: Optional[CurriculumResponse] = None
     alignment_debug: Optional[dict] = None
 

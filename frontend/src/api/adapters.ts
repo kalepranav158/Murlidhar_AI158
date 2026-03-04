@@ -1,4 +1,5 @@
 import type {
+  AnalyticsRadarApi,
   MessagePayload,
   PracticeApi,
   SessionsApi,
@@ -10,7 +11,9 @@ import type {
 import type {
   AnalyticsSnapshotNormalized,
   ApiResult,
+  PracticeHistoryNormalized,
   PracticeResultNormalized,
+  SkillRadarNormalized,
   StudentCurriculumNormalized,
   StudentProfileNormalized,
   StudentStreakNormalized,
@@ -238,10 +241,20 @@ export const normalizePracticeResult = (
         avgTimingErrorSec: null,
         techniqueScore: null,
         adaptivePlanSummary: null,
+        recommendedTempo: null,
+        songRecommendedTempo: null,
+        focusArea: null,
+        focusPhrase: null,
+        targetDrill: null,
+        exerciseMode: null,
+        variationStrategy: null,
+        tempoFeedback: null,
+        songRecommendation: null,
         unlockEvent: false,
         rawFeedback: null,
         curriculum: null,
         detectedNotes: [],
+        referenceNotes: [],
         alignmentDebug: null,
         techniques: null,
         techniqueDetails: null,
@@ -277,6 +290,29 @@ export const normalizePracticeResult = (
     })
     .filter((note): note is { note: string; cents: number; time: number } => note !== null);
 
+  const referenceNotesRaw = Array.isArray(payload.reference_notes) ? payload.reference_notes : [];
+  const referenceNotes = referenceNotesRaw
+    .map((note) => {
+      if (typeof note?.note !== "string" || typeof note?.time !== "number") {
+        return null;
+      }
+
+      return {
+        note: note.note,
+        time: note.time,
+      };
+    })
+    .filter((note): note is { note: string; time: number } => note !== null);
+
+  const adaptivePlan =
+    payload.adaptive_plan && typeof payload.adaptive_plan === "object"
+      ? (payload.adaptive_plan as Record<string, unknown>)
+      : null;
+  const songAdaptivePlan =
+    payload.song_adaptive_plan && typeof payload.song_adaptive_plan === "object"
+      ? (payload.song_adaptive_plan as Record<string, unknown>)
+      : null;
+
   return {
     data: {
       song: payload.song ?? null,
@@ -293,10 +329,49 @@ export const normalizePracticeResult = (
           : null,
       techniqueScore: typeof payload.technique_score === "number" ? payload.technique_score : null,
       adaptivePlanSummary: extractAdaptivePlanSummary(payload),
+      recommendedTempo:
+        typeof adaptivePlan?.recommended_tempo === "number"
+          ? adaptivePlan.recommended_tempo
+          : typeof songAdaptivePlan?.recommended_tempo === "number"
+            ? songAdaptivePlan.recommended_tempo
+          : null,
+      songRecommendedTempo:
+        typeof songAdaptivePlan?.recommended_tempo === "number"
+          ? songAdaptivePlan.recommended_tempo
+          : null,
+      focusArea:
+        typeof adaptivePlan?.focus_area === "string"
+          ? adaptivePlan.focus_area
+          : null,
+      focusPhrase:
+        typeof songAdaptivePlan?.focus_phrase === "number"
+          ? songAdaptivePlan.focus_phrase
+          : null,
+      targetDrill:
+        typeof adaptivePlan?.target_drill === "string"
+          ? adaptivePlan.target_drill
+          : null,
+      exerciseMode:
+        typeof adaptivePlan?.exercise_mode === "string"
+          ? adaptivePlan.exercise_mode
+          : null,
+      variationStrategy:
+        typeof adaptivePlan?.variation_strategy === "string"
+          ? adaptivePlan.variation_strategy
+          : null,
+      tempoFeedback:
+        typeof adaptivePlan?.tempo_feedback === "string"
+          ? adaptivePlan.tempo_feedback
+          : null,
+      songRecommendation:
+        typeof songAdaptivePlan?.song_recommendation === "string"
+          ? songAdaptivePlan.song_recommendation
+          : null,
       unlockEvent: Boolean(payload.full_song_unlocked),
       rawFeedback: payload.evaluation?.feedback,
       curriculum: payload.curriculum ? curriculum : null,
       detectedNotes,
+      referenceNotes,
       alignmentDebug:
         payload.alignment_debug && typeof payload.alignment_debug === "object"
           ? {
@@ -318,6 +393,222 @@ export const normalizePracticeResult = (
     empty: {
       isEmpty: false,
       message: null,
+    },
+  };
+};
+
+const clamp01 = (value: number): number => {
+  if (value < 0) {
+    return 0;
+  }
+
+  if (value > 1) {
+    return 1;
+  }
+
+  return value;
+};
+
+const normalizeIndexValue = (value: unknown): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  if (value <= 1) {
+    return clamp01(value);
+  }
+
+  if (value <= 100) {
+    return clamp01(value / 100);
+  }
+
+  return 1;
+};
+
+const latestTechniqueFromSessions = (
+  sessionsPayload?: SessionsApi | MessagePayload | null,
+): number | null => {
+  if (!sessionsPayload || isMessagePayload(sessionsPayload)) {
+    return null;
+  }
+
+  const latest = sessionsPayload.sessions?.[0];
+  return normalizeIndexValue(latest?.technique_score);
+};
+
+export const normalizeSkillRadar = (
+  radarPayload: AnalyticsRadarApi | MessagePayload | null | undefined,
+  sessionsPayload?: SessionsApi | MessagePayload | null,
+  analyticsSnapshot?: ApiResult<AnalyticsSnapshotNormalized> | null,
+): ApiResult<SkillRadarNormalized> => {
+  const radarNoData = !radarPayload || isMessagePayload(radarPayload);
+  const radar = radarNoData ? null : radarPayload;
+
+  const pitch = normalizeIndexValue(radar?.pitch);
+  const rhythm = normalizeIndexValue(radar?.rhythm);
+  const consistency = normalizeIndexValue(radar?.consistency);
+  const radarComposite = normalizeIndexValue(radar?.composite);
+  const radarTechnique = normalizeIndexValue(radar?.technique);
+  const radarProgress = normalizeIndexValue(radar?.progress);
+
+  const sessionTechnique = latestTechniqueFromSessions(sessionsPayload);
+  const analyticsComposite = normalizeIndexValue(analyticsSnapshot?.data.compositeScore ?? null);
+
+  const technique = radarTechnique ?? sessionTechnique ?? 0;
+  const progress = radarProgress ?? analyticsComposite ?? radarComposite ?? 0;
+
+  const composite = radarComposite ?? analyticsComposite ?? progress;
+
+  return {
+    data: {
+      pitch: pitch ?? 0,
+      rhythm: rhythm ?? 0,
+      technique,
+      consistency: consistency ?? 0,
+      progress,
+      composite,
+      techniqueSource: radarTechnique !== null ? "radar" : sessionTechnique !== null ? "sessions" : "fallback",
+      progressSource: radarProgress !== null ? "radar" : analyticsComposite !== null ? "analytics" : "fallback",
+    },
+    empty: {
+      isEmpty: radarNoData,
+      message: radarNoData && isMessagePayload(radarPayload)
+        ? radarPayload.message
+        : radarNoData
+          ? "No radar data available."
+          : null,
+    },
+  };
+};
+
+const asFiniteNumberOrNull = (value: unknown): number | null => {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const extractSessionsPayload = (
+  payload: SessionsApi | MessagePayload | null | undefined,
+): SessionsApi | null => {
+  if (!payload) {
+    return null;
+  }
+
+  if (!isMessagePayload(payload)) {
+    return payload;
+  }
+
+  if (typeof payload.data !== "object" || payload.data === null) {
+    return null;
+  }
+
+  const data = payload.data as { count?: unknown; sessions?: unknown };
+  if (!Array.isArray(data.sessions)) {
+    return null;
+  }
+
+  return {
+    count: typeof data.count === "number" ? data.count : data.sessions.length,
+    sessions: data.sessions as SessionsApi["sessions"],
+  };
+};
+
+export const normalizePracticeHistory = (
+  sessionsPayload: SessionsApi | MessagePayload | null | undefined,
+  options?: {
+    unlockDelta?: number;
+    unlockedContentCount?: number;
+  },
+): ApiResult<PracticeHistoryNormalized> => {
+  const payload = extractSessionsPayload(sessionsPayload);
+  const rawSessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+
+  const sessionsWithSourceOrder = rawSessions
+    .map((session, sourceOrder) => {
+      if (typeof session !== "object" || session === null) {
+        return null;
+      }
+
+      const entry = session as {
+        id?: unknown;
+        timestamp?: unknown;
+        note_accuracy?: unknown;
+        composite_score?: unknown;
+        pitch_index?: unknown;
+        rhythm_index?: unknown;
+        consistency_index?: unknown;
+        technique_score?: unknown;
+      };
+
+      return {
+        sourceOrder,
+        session: {
+          id: asFiniteNumberOrNull(entry.id),
+          timestamp: typeof entry.timestamp === "string" ? entry.timestamp : null,
+          noteAccuracy: asFiniteNumberOrNull(entry.note_accuracy),
+          compositeScore: asFiniteNumberOrNull(entry.composite_score),
+          pitchIndex: asFiniteNumberOrNull(entry.pitch_index),
+          rhythmIndex: asFiniteNumberOrNull(entry.rhythm_index),
+          consistencyIndex: asFiniteNumberOrNull(entry.consistency_index),
+          techniqueScore: asFiniteNumberOrNull(entry.technique_score),
+        },
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        sourceOrder: number;
+        session: PracticeHistoryNormalized["sessions"][number];
+      } => item !== null,
+    );
+
+  const sessions = sessionsWithSourceOrder
+    .sort((left, right) => {
+      const leftId = left.session.id;
+      const rightId = right.session.id;
+
+      if (leftId !== null && rightId !== null && leftId !== rightId) {
+        return leftId - rightId;
+      }
+
+      const leftTime = left.session.timestamp ? Date.parse(left.session.timestamp) : Number.NaN;
+      const rightTime = right.session.timestamp ? Date.parse(right.session.timestamp) : Number.NaN;
+      const leftValidTime = Number.isFinite(leftTime);
+      const rightValidTime = Number.isFinite(rightTime);
+
+      if (leftValidTime && rightValidTime && leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+
+      return left.sourceOrder - right.sourceOrder;
+    })
+    .map((item) => item.session);
+
+  const unlockDeltaRaw = options?.unlockDelta;
+  const unlockDelta =
+    typeof unlockDeltaRaw === "number" && Number.isFinite(unlockDeltaRaw)
+      ? Math.max(0, Math.floor(unlockDeltaRaw))
+      : 0;
+
+  const unlockedContentCountRaw = options?.unlockedContentCount;
+  const unlockedContentCount =
+    typeof unlockedContentCountRaw === "number" && Number.isFinite(unlockedContentCountRaw)
+      ? Math.max(0, Math.floor(unlockedContentCountRaw))
+      : 0;
+
+  return {
+    data: {
+      sessions,
+      unlockDelta,
+      unlockedContentCount,
+    },
+    empty: {
+      isEmpty: sessions.length === 0,
+      message:
+        sessions.length === 0
+          ? isMessagePayload(sessionsPayload)
+            ? sessionsPayload.message
+            : "No sessions available."
+          : null,
     },
   };
 };

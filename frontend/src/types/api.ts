@@ -74,6 +74,15 @@ export type AnalyticsTrendApi = {
   }>;
 };
 
+export type AnalyticsRadarApi = {
+  pitch?: number;
+  rhythm?: number;
+  consistency?: number;
+  composite?: number;
+  technique?: number;
+  progress?: number;
+};
+
 export type AnalyticsSkillLevelApi = {
   skill_level?: string;
   average_note_accuracy?: number;
@@ -170,6 +179,10 @@ export type PracticeApi = {
   detected_notes?: Array<{
     note?: string;
     cents?: number;
+    time?: number;
+  }>;
+  reference_notes?: Array<{
+    note?: string;
     time?: number;
   }>;
   alignment_debug?: {

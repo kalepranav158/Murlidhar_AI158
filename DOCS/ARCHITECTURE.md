@@ -110,6 +110,16 @@ Current note:
 
 - Targeted canonical regression suite status: `16 passed` (`test_edge_cases.py`, `test_curriculum.py`).
 
+## 10. Frontend V2 Architecture (Planned)
+
+Current implementation note:
+- Backend contracts already expose the required data for V2 frontend evolution (practice payload overlays, radar endpoint, sessions timeline source, adaptive recommendation payloads).
+- V2 is planned as a frontend-first upgrade without backend progression-logic changes.
+
+Planning references:
+- `DOCS/FRONTEND_ARCHITECTURE_V2.md`
+- `DOCS/FRONTEND_V2_IMPLEMENTATION_PLAN.md`
+
 ## v1 Backend Freeze
 Date: 2026-03-02
 All freeze checklist items completed.

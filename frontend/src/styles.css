@@ -156,3 +156,592 @@ pre {
   margin-top: 8px;
   width: 100%;
 }
+
+.studio-card {
+  grid-column: 1 / -1;
+}
+
+.practice-studio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.practice-studio-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.practice-studio-stat {
+  background: #f8faff;
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.practice-studio-stat h3 {
+  font-size: 13px;
+  color: #4b556a;
+  margin-bottom: 6px;
+}
+
+.practice-studio-stat p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pitch-timeline-wrap {
+  border: 1px solid #d9deea;
+  border-radius: 10px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.pitch-timeline-svg {
+  width: 100%;
+  display: block;
+}
+
+.timeline-bg {
+  fill: #f8faff;
+  stroke: #d9deea;
+}
+
+.timeline-grid-line {
+  stroke: #d9deea;
+  stroke-width: 1;
+}
+
+.timeline-axis-label {
+  fill: #5d6473;
+  font-size: 11px;
+}
+
+.timeline-reference-line {
+  stroke: #1f3a8a;
+  stroke-width: 2;
+}
+
+.timeline-reference-point {
+  fill: #1f3a8a;
+}
+
+.timeline-note-label {
+  fill: #1f3a8a;
+  font-size: 10px;
+}
+
+.timeline-user-curve {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+
+.timeline-user-point {
+  fill: #2563eb;
+}
+
+.timeline-technique-meend {
+  fill: rgba(31, 58, 138, 0.25);
+}
+
+.timeline-technique-gamak {
+  fill: rgba(14, 165, 233, 0.25);
+}
+
+.timeline-technique-label {
+  fill: #1d2433;
+  font-size: 9px;
+}
+
+.timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #4b556a;
+}
+
+.timeline-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-reference {
+  background: #1f3a8a;
+}
+
+.legend-user {
+  background: #2563eb;
+}
+
+.legend-meend {
+  background: rgba(31, 58, 138, 0.5);
+}
+
+.legend-gamak {
+  background: rgba(14, 165, 233, 0.5);
+}
+
+.practice-studio-insights {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.practice-studio-insights p {
+  margin: 0 0 6px;
+}
+
+.technique-visualizer-panel {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.technique-visualizer-panel h3 {
+  margin-bottom: 8px;
+}
+
+.technique-visualizer-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.technique-visualizer-stat {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.technique-visualizer-stat h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #4b556a;
+}
+
+.technique-visualizer-stat p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.technique-overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.technique-overlay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #4b556a;
+}
+
+.technique-overlay-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.technique-expected {
+  background: #1f3a8a;
+}
+
+.technique-observed {
+  background: #2563eb;
+}
+
+.technique-overlay-row {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.technique-overlay-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.technique-overlay-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.technique-overlay-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.technique-overlay-badge.matched {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.technique-overlay-badge.missing {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.technique-overlay-track {
+  position: relative;
+  height: 14px;
+  border: 1px solid #d9deea;
+  border-radius: 999px;
+  background: #f8faff;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.technique-overlay-segment {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 999px;
+}
+
+.technique-overlay-segment.expected {
+  background: rgba(31, 58, 138, 0.45);
+}
+
+.technique-overlay-segment.observed {
+  background: rgba(37, 99, 235, 0.7);
+}
+
+.technique-overlay-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 6px 10px;
+}
+
+.technique-overlay-metrics p {
+  margin: 0;
+}
+
+.practice-studio-feedback {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.adaptive-coach-panel {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.adaptive-coach-panel h3 {
+  margin-bottom: 8px;
+}
+
+.adaptive-coach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.adaptive-coach-card {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.adaptive-coach-card h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #3f4b64;
+}
+
+.adaptive-coach-value {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.adaptive-coach-sections {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.adaptive-coach-block {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.adaptive-coach-block h4 {
+  margin: 0 0 8px;
+  color: #3f4b64;
+}
+
+.practice-studio-feedback h3 {
+  margin-bottom: 8px;
+}
+
+.practice-feedback-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+}
+
+.practice-feedback-item {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.practice-feedback-item h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #3f4b64;
+}
+
+.practice-feedback-item p {
+  margin: 0;
+  color: #1d2433;
+  white-space: pre-wrap;
+}
+
+.skill-radar-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skill-radar-wrap {
+  border: 1px solid #d9deea;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.skill-radar-svg {
+  width: 100%;
+  max-width: 460px;
+  display: block;
+  margin: 0 auto;
+}
+
+.skill-radar-grid {
+  fill: none;
+  stroke: #d9deea;
+  stroke-width: 1;
+}
+
+.skill-radar-axis {
+  stroke: #b7c0d6;
+  stroke-width: 1;
+}
+
+.skill-radar-label {
+  fill: #3f4b64;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.skill-radar-shape {
+  fill: rgba(37, 99, 235, 0.24);
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+
+.skill-radar-dot {
+  fill: #1d4ed8;
+}
+
+.skill-radar-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.skill-radar-metric {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.skill-radar-metric h3 {
+  font-size: 13px;
+  color: #4b556a;
+  margin-bottom: 6px;
+}
+
+.skill-radar-metric p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.skill-radar-sources {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.skill-radar-sources p {
+  margin: 0 0 6px;
+}
+
+.practice-history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.practice-history-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.practice-history-stat {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.practice-history-stat h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #4b556a;
+}
+
+.practice-history-stat p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.practice-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.practice-history-item {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+}
+
+.practice-history-track {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.practice-history-track::before {
+  content: "";
+  width: 2px;
+  background: #d9deea;
+  border-radius: 999px;
+}
+
+.practice-history-dot {
+  position: absolute;
+  top: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.practice-history-entry {
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.practice-history-entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.practice-history-entry-head h4 {
+  margin: 0;
+}
+
+.practice-history-entry-head p {
+  margin: 0;
+}
+
+.practice-history-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 10px;
+}
+
+.practice-history-metrics p {
+  margin: 0;
+}
+
+.practice-history-badges {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.practice-history-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.practice-history-badge.improvement {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.practice-history-badge.plateau {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.practice-history-badge.unlock {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.practice-history-note {
+  border-top: 1px solid #d9deea;
+  padding-top: 10px;
+}
+
+.practice-history-note p {
+  margin: 0 0 6px;
+}

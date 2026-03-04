@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { getStudentCurriculum, getStudentProfile, getStudentStreak } from "../api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
 import type {
@@ -16,7 +16,7 @@ export function useStudentProfile() {
   const [streakState, setStreakState] =
     useState<AsyncState<ApiResult<StudentStreakNormalized>>>(initialAsyncState());
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string) => {
     setProfileState({ loading: true, error: null, data: null });
     try {
       const payload = await getStudentProfile(userId);
@@ -27,9 +27,9 @@ export function useStudentProfile() {
       setProfileState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
-  const loadCurriculum = async (userId: string) => {
+  const loadCurriculum = useCallback(async (userId: string) => {
     setCurriculumState({ loading: true, error: null, data: null });
     try {
       const payload = await getStudentCurriculum(userId);
@@ -40,9 +40,9 @@ export function useStudentProfile() {
       setCurriculumState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
-  const loadStreak = async (userId: string) => {
+  const loadStreak = useCallback(async (userId: string) => {
     setStreakState({ loading: true, error: null, data: null });
     try {
       const payload = await getStudentStreak(userId);
@@ -53,7 +53,7 @@ export function useStudentProfile() {
       setStreakState({ loading: false, error: message, data: null });
       throw error;
     }
-  };
+  }, []);
 
   return {
     profileState,
