@@ -4,9 +4,11 @@ import json
 from datetime import datetime
 from typing import Optional
 from app.services.skill_profile import build_skill_profile
+from music.song_loader import infer_content_type
 from database.db import get_student_progress  # type: ignore[attr-defined]
 from database.db import update_student_progress  # type: ignore[attr-defined]
 from database.db import is_alankar_mastered  # type: ignore[attr-defined]
+from database.db import is_melody_mastered  # type: ignore[attr-defined]
 from database.db import is_song_mastered  # type: ignore[attr-defined]
 from database.db import count_mastered_alankars  # type: ignore[attr-defined]
 from database.db import count_mastered_songs  # type: ignore[attr-defined]
@@ -92,9 +94,17 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
         except Exception:
             continue
 
-        ctype = content.get("type")
+        ctype = infer_content_type(content, cid)
         if ctype == "alankar":
             if is_alankar_mastered(user_id, cid):
+                mastered.add(cid)
+                nxt = content.get("unlock_next")
+                if nxt:
+                    unlocked.add(nxt)
+                    newly_unlocked.append(nxt)
+        elif ctype == "melody":
+            total = len(content.get("phrases", []))
+            if total > 0 and is_melody_mastered(user_id, cid, total):
                 mastered.add(cid)
                 nxt = content.get("unlock_next")
                 if nxt:
@@ -110,8 +120,8 @@ def evaluate_curriculum_progress(user_id: str) -> dict:
                     unlocked.add(nxt)
                     newly_unlocked.append(nxt)
 
-    profile["unlocked_content"] = list(unlocked)
-    profile["mastered_content"] = list(mastered)
+    profile["unlocked_content"] = sorted(unlocked)
+    profile["mastered_content"] = sorted(mastered)
     profile["last_evaluated"] = datetime.now().isoformat()
 
     # persist profile

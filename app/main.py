@@ -35,7 +35,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     from database.db import init_db
+    from app.services.learning_engine import initialize_learning_model
+
     init_db()
+
+    try:
+        initialize_learning_model()
+    except Exception:
+        logging.exception("Learning model initialization failed")
 
 
 

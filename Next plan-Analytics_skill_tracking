@@ -1,77 +1,48 @@
-🚀 NEXT DEVELOPMENT PLAN
-Phase V2.1 (Immediate)
+🚀 NEXT DEVELOPMENT PLAN (Rebaselined 2026-03-04)
 
-Complete UI modules:
+Current state:
+- V2 UI module suite is completed and validated:
+  - practice-studio
+  - skill-radar
+  - practice-history
+  - technique-visualizer
+  - adaptive-coach
+- Adaptive Coach now uses deterministic next-step guidance (LLM structured drill path removed).
 
-practice-studio
-skill-radar
-practice-history
-technique-visualizer
-adaptive-coach
-Phase V2.2 (Content Expansion)
+Execution mode (confirmed):
+- Delivery style: full-stack incremental by feature slice.
+- Melody modeling: new content type (not an alias of existing song type).
+- Recommendation strategy: ML-first.
+- ML data source: existing session/history data only.
+- ML serving mode: offline-trained model loaded at backend startup.
 
-Add new content types:
+📦 Slice Backlog
 
-melody_1.json
-melody_2.json
-melody_3.json
+Slice 1 — Documentation + Architecture Rebaseline (current)
+- Rebaseline roadmap docs to reflect completed V2 and next-slice strategy.
+- Lock architecture boundaries for melody content type and ML-first learning engine.
 
-Structure:
+Slice 2 — Melody Content Type Foundation
+- Add melody content type contract and backend domain plumbing.
+- Keep existing song/alankar flows stable.
 
-songs/
-  alankar_1
-  alankar_2
-  melody_1
-  melody_2
-  melody_3
-Phase V2.3 (Learning Engine Upgrade)
+Slice 3 — Content Expansion Pack
+- Add `melody_1.json`, `melody_2.json`, `melody_3.json`.
+- Integrate melodies into catalog and practice selection paths.
 
-Add:
+Slice 4 — Learning Engine Upgrade (ML-first)
+- Add skill profile builder.
+- Add learning difficulty estimator.
+- Add recommendation model training + offline artifact loading.
+- Add inference APIs for recommendation/skill-profile/difficulty outputs.
 
-skill profile builder
-learning difficulty estimator
-practice recommendation engine
-
-Example recommendation:
-
-You struggle with rhythm → assign rhythm drills
-You struggle with pitch → assign slow alankars
-Phase V2.4 (Studio Intelligence)
-
-Add real-time visual feedback:
-
-pitch curve vs reference
-timing markers
-technique markers
-
-You already planned this in practice studio.
+Slice 5 — Frontend Learning Intelligence Wiring
+- Render ML recommendation outputs in frontend pages.
+- Wire melody-type practice UX end-to-end.
+- Preserve deterministic fallback states when model output is unavailable.
 
 📈 FINAL SYSTEM TRAJECTORY
-
-Your system evolution:
 
 V1 → Evaluator
 V2 → Interactive tutor
 V3 → Intelligent learning system
-
-You are currently entering V2 stage.
-
-⭐ MY HONEST ASSESSMENT
-
-This project is already strong enough for:
-
-Final year project
-
-Research prototype
-
-AI music education demo
-
-Because it includes:
-
-DSP
-ML alignment (DTW)
-skill modeling
-adaptive learning
-visual feedback
-
-Most music tutor apps do not have this architecture.

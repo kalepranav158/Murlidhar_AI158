@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   API_BASE_URL,
+  listSongs,
 } from "../api";
 import { usePracticeSession } from "../hooks/usePracticeSession";
 import { useStudentProfile } from "../hooks/useStudentProfile";
@@ -11,12 +12,23 @@ import { convertBlobToWavFile } from "../utils/audioToWav";
 import { emitPracticeRefreshSignal } from "../utils/practiceRefreshSignal";
 import { PracticeStudioPanel } from "../modules/practice-studio";
 
+type ContentOption = {
+  id: string;
+  label: string;
+};
+
 export default function PracticePage() {
   const [userId, setUserId] = useState("demo_user");
-  const [mode, setMode] = useState<"alankar" | "song">("alankar");
+  const [mode, setMode] = useState<"alankar" | "song" | "melody">("alankar");
   const [inputMethod, setInputMethod] = useState<"upload" | "record">("upload");
   const [alankarId, setAlankarId] = useState("alankar_1");
   const [songId, setSongId] = useState("song_1");
+  const [melodyId, setMelodyId] = useState("melody_1");
+  const [alankarOptions, setAlankarOptions] = useState<ContentOption[]>([]);
+  const [songOptions, setSongOptions] = useState<ContentOption[]>([]);
+  const [melodyOptions, setMelodyOptions] = useState<ContentOption[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [tempo, setTempo] = useState(60);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -29,7 +41,7 @@ export default function PracticePage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
-  const { practiceState, submitAlankar, submitSong } = usePracticeSession();
+  const { practiceState, submitAlankar, submitSong, submitMelody } = usePracticeSession();
   const { curriculumState, loadCurriculum } = useStudentProfile();
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
@@ -43,6 +55,101 @@ export default function PracticePage() {
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, [recordingPreviewUrl]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const mapOptions = (
+      catalog: Array<{ song_id: string; title?: string }>,
+    ): ContentOption[] => {
+      return catalog
+        .map((item) => {
+          const id = typeof item.song_id === "string" ? item.song_id.trim() : "";
+          if (!id) {
+            return null;
+          }
+
+          const title = typeof item.title === "string" ? item.title.trim() : "";
+          const label =
+            title.length > 0 && title.toLowerCase() !== id.toLowerCase()
+              ? `${title} (${id})`
+              : id;
+
+          return {
+            id,
+            label,
+          };
+        })
+        .filter((item): item is ContentOption => item !== null)
+        .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
+    };
+
+    const loadContentCatalog = async () => {
+      setCatalogLoading(true);
+      setCatalogError(null);
+
+      try {
+        const [alankarCatalog, songCatalog, melodyCatalog] = await Promise.all([
+          listSongs({ contentType: "alankar" }),
+          listSongs({ contentType: "song" }),
+          listSongs({ contentType: "melody" }),
+        ]);
+
+        const nextAlankarOptions = mapOptions(alankarCatalog);
+        const nextSongOptions = mapOptions(songCatalog);
+        const nextMelodyOptions = mapOptions(melodyCatalog);
+
+        if (disposed) {
+          return;
+        }
+
+        setAlankarOptions(nextAlankarOptions);
+        setSongOptions(nextSongOptions);
+        setMelodyOptions(nextMelodyOptions);
+
+        setAlankarId((current) =>
+          nextAlankarOptions.some((option) => option.id === current)
+            ? current
+            : (nextAlankarOptions[0]?.id ?? current),
+        );
+
+        setSongId((current) =>
+          nextSongOptions.some((option) => option.id === current) ? current : (nextSongOptions[0]?.id ?? current),
+        );
+
+        setMelodyId((current) =>
+          nextMelodyOptions.some((option) => option.id === current)
+            ? current
+            : (nextMelodyOptions[0]?.id ?? current),
+        );
+
+        if (
+          nextAlankarOptions.length === 0 &&
+          nextSongOptions.length === 0 &&
+          nextMelodyOptions.length === 0
+        ) {
+          setCatalogError("No content IDs available in the content catalog.");
+        }
+      } catch (error) {
+        if (disposed) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : "Failed to load content catalog.";
+        setCatalogError(message);
+      } finally {
+        if (!disposed) {
+          setCatalogLoading(false);
+        }
+      }
+    };
+
+    void loadContentCatalog();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setAudioFile(event.target.files?.[0] ?? null);
@@ -156,10 +263,26 @@ export default function PracticePage() {
       return;
     }
 
+    if (mode === "song") {
+      try {
+        await submitSong({
+          userId: safeUserId,
+          songId: songId.trim(),
+          phraseIndex,
+          tempo,
+          audioFile: selectedFile,
+        });
+        emitPracticeRefreshSignal(safeUserId);
+      } catch {
+        return;
+      }
+      return;
+    }
+
     try {
-      await submitSong({
+      await submitMelody({
         userId: safeUserId,
-        songId: songId.trim(),
+        melodyId: melodyId.trim(),
         phraseIndex,
         tempo,
         audioFile: selectedFile,
@@ -193,24 +316,68 @@ export default function PracticePage() {
           Mode
           <select
             value={mode}
-            onChange={(event) => setMode(event.target.value as "alankar" | "song")}
+            onChange={(event) => setMode(event.target.value as "alankar" | "song" | "melody")}
           >
             <option value="alankar">Alankar Practice</option>
             <option value="song">Song Practice</option>
+            <option value="melody">Melody Practice</option>
           </select>
         </label>
 
         {mode === "alankar" ? (
           <label>
             Alankar ID
-            <input value={alankarId} onChange={(event) => setAlankarId(event.target.value)} />
+            <select
+              value={alankarOptions.some((option) => option.id === alankarId) ? alankarId : ""}
+              onChange={(event) => setAlankarId(event.target.value)}
+              disabled={catalogLoading || alankarOptions.length === 0}
+            >
+              {catalogLoading && <option value="">Loading content...</option>}
+              {!catalogLoading && alankarOptions.length === 0 && <option value="">No alankars available</option>}
+              {alankarOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : mode === "song" ? (
+          <label>
+            Song ID
+            <select
+              value={songOptions.some((option) => option.id === songId) ? songId : ""}
+              onChange={(event) => setSongId(event.target.value)}
+              disabled={catalogLoading || songOptions.length === 0}
+            >
+              {catalogLoading && <option value="">Loading content...</option>}
+              {!catalogLoading && songOptions.length === 0 && <option value="">No songs available</option>}
+              {songOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
         ) : (
           <label>
-            Song ID
-            <input value={songId} onChange={(event) => setSongId(event.target.value)} />
+            Melody ID
+            <select
+              value={melodyOptions.some((option) => option.id === melodyId) ? melodyId : ""}
+              onChange={(event) => setMelodyId(event.target.value)}
+              disabled={catalogLoading || melodyOptions.length === 0}
+            >
+              {catalogLoading && <option value="">Loading content...</option>}
+              {!catalogLoading && melodyOptions.length === 0 && <option value="">No melodies available</option>}
+              {melodyOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
         )}
+
+        {catalogError && <p className="error">{catalogError}</p>}
 
         <label>
           Phrase Index

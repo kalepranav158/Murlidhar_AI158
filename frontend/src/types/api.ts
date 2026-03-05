@@ -121,6 +121,35 @@ export type AnalyticsWeakestPhraseApi = {
   attempts?: number;
 };
 
+export type LearningDifficultyApi = {
+  difficulty_level?: string;
+  recommended_content_type?: string;
+  weakest_dimension?: string;
+  composite_score?: number;
+  confidence?: string;
+  total_sessions_analyzed?: number;
+};
+
+export type LearningRecommendationApi = {
+  predicted_next_accuracy?: number;
+  recommended_tempo_adjustment?: string;
+  practice_focus?: string;
+  recommendation?: string;
+  recommended_content_type?: string;
+  difficulty_level?: string;
+  model_source?: string;
+};
+
+export type LearningModelStatusApi = {
+  loaded?: boolean;
+  source?: string;
+  artifact_path?: string;
+  trained_at?: string;
+  sample_pairs?: number;
+  mae?: number | null;
+  reason?: string;
+};
+
 export type StudentStreakApi = {
   user_id?: string;
   current_streak?: number;
@@ -151,9 +180,11 @@ export type SongListItemApi = {
   title?: string;
   tempo?: number | null;
   phrases?: number;
+  content_type?: "alankar" | "song" | "melody" | string;
 };
 
 export type PracticeApi = {
+  content_type?: "alankar" | "song" | "melody" | string;
   song?: string;
   phrase_index?: number;
   dtw_cost?: number;

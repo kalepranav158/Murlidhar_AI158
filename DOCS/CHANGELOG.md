@@ -1,6 +1,21 @@
 # CHANGELOG
 
 ## [Unreleased]
+- Completed Slice 5 frontend learning-intelligence wiring: Dashboard/Progress now render ML learning difficulty and recommendation guidance with model-status visibility
+- Completed Slice 4 ML-first learning engine: added `app/services/learning_engine.py`, offline artifact bootstrap (`app/config/learning_model_artifact.json`), startup model loading, and offline trainer script (`scripts/train_learning_model.py`)
+- Added learning analytics endpoints: `/analytics/learning/skill-profile`, `/analytics/learning/difficulty`, `/analytics/learning/recommendation`, `/analytics/learning/model-status`, `/analytics/learning/model-refresh`
+- Added learning-engine regression coverage in `tests/test_learning_engine.py`
+- Completed Slice 3 melody progression integration: curriculum now uses canonical `infer_content_type` and deterministic sorted unlock/mastered content ordering
+- Added melody progression regression coverage in `tests/test_melody_progression_rules.py`
+- Added melody catalog regression coverage in `tests/test_song_catalog.py` for unlock-chain integrity and `infer_content_type` inference.
+- Added famous/public-domain melody pack files: `melody_1` (Twinkle Twinkle), `melody_2` (Ode to Joy), `melody_3` (Happy Birthday)
+- Started Slice 2 melody foundation: added songs catalog `content_type` support (response + optional filter query)
+- Added melody practice backend route and service wiring (`/practice/melody/{user_id}/{melody_id}/{phrase_index}`) with content-type validation
+- Extended practice response schema/normalization with `content_type` and frontend normalized `contentType`
+- Added frontend melody submission path: API client + `usePracticeSession` hook + Practice page `Melody Practice` mode
+- Added backend melody progression helper integration in curriculum/mastery checks (`is_melody_mastered`)
+- Rebaselined post-V2 roadmap docs for slice-based execution and locked implementation decisions
+- Updated V2 planning/architecture docs with approved next track: new melody content type + ML-first learning engine (offline model loading)
 - Added first-visit auto-load for Dashboard and Progress pages to reduce manual fetch steps
 - Added first-visit auto-load for Skill Radar and Practice History pages, while preserving submit-triggered refresh behavior
 - Removed Adaptive Coach LLM structured-drill flow and `/ask` dependency from Practice Studio

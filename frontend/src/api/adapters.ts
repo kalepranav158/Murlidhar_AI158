@@ -234,6 +234,7 @@ export const normalizePracticeResult = (
   if (!payload || isMessagePayload(payload)) {
     return {
       data: {
+        contentType: null,
         song: null,
         phraseIndex: null,
         noteAccuracy: null,
@@ -315,6 +316,7 @@ export const normalizePracticeResult = (
 
   return {
     data: {
+      contentType: typeof payload.content_type === "string" ? payload.content_type : null,
       song: payload.song ?? null,
       phraseIndex: typeof payload.phrase_index === "number" ? payload.phrase_index : null,
       noteAccuracy:

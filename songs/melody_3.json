@@ -1,0 +1,66 @@
+{
+  "id": "melody_3",
+  "type": "melody",
+  "level": "intermediate",
+  "title": "Happy Birthday (Public Domain)",
+  "required_accuracy": 84,
+  "required_rhythm_index": 0.66,
+  "required_technique_score": 0.0,
+  "required_composite_score": 0.72,
+  "unlock_next": null,
+  "base_tempo": 84,
+  "phrases": [
+    {
+      "id": 0,
+      "difficulty": "medium",
+      "notes": [
+        { "note": "Madhya Pa", "time": 0.0 },
+        { "note": "Madhya Pa", "time": 0.5 },
+        { "note": "Madhya Dha", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Taar Sa", "time": 2.0 },
+        { "note": "Madhya Ni", "time": 2.5 }
+      ]
+    },
+    {
+      "id": 1,
+      "difficulty": "medium",
+      "notes": [
+        { "note": "Madhya Pa", "time": 0.0 },
+        { "note": "Madhya Pa", "time": 0.5 },
+        { "note": "Madhya Dha", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Taar Re", "time": 2.0 },
+        { "note": "Taar Sa", "time": 2.5 }
+      ]
+    },
+    {
+      "id": 2,
+      "difficulty": "medium",
+      "notes": [
+        { "note": "Madhya Pa", "time": 0.0 },
+        { "note": "Madhya Pa", "time": 0.5 },
+        { "note": "Taar Sa", "time": 1.0 },
+        { "note": "Taar Ga", "time": 1.5 },
+        { "note": "Taar Ma", "time": 2.0 },
+        { "note": "Taar Pa", "time": 2.5 },
+        { "note": "Taar Ma", "time": 3.0 },
+        { "note": "Taar Sa", "time": 3.5 },
+        { "note": "Madhya Ni", "time": 4.0 },
+        { "note": "Madhya Dha", "time": 4.5 }
+      ]
+    },
+    {
+      "id": 3,
+      "difficulty": "medium",
+      "notes": [
+        { "note": "Taar Ni", "time": 0.0 },
+        { "note": "Taar Ni", "time": 0.5 },
+        { "note": "Taar Ma", "time": 1.0 },
+        { "note": "Taar Ga", "time": 1.5 },
+        { "note": "Taar Re", "time": 2.0 },
+        { "note": "Taar Sa", "time": 2.5 }
+      ]
+    }
+  ]
+}

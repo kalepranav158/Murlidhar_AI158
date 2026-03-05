@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
-  askGuru,
   getAnalyticsConsistency,
   getAnalyticsConsistencyDetails,
   getAnalyticsDashboard,
@@ -31,10 +30,8 @@ export default function DiagnosticsPage() {
   const [alankarId, setAlankarId] = useState("basic_alankar");
   const [songId, setSongId] = useState("song_1");
   const [debugPhraseId, setDebugPhraseId] = useState(0);
-  const [question, setQuestion] = useState("How should I improve rhythm stability?");
 
   const [analyticsFullState, setAnalyticsFullState] = useState(initialAsyncState<unknown>());
-  const [askState, setAskState] = useState(initialAsyncState<unknown>());
   const [debugState, setDebugState] = useState(initialAsyncState<unknown>());
   const [healthState, setHealthState] = useState(initialAsyncState<unknown>());
 
@@ -54,10 +51,6 @@ export default function DiagnosticsPage() {
 
   const onDebugPhraseIdChange = (event: ChangeEvent<HTMLInputElement>) => {
     setDebugPhraseId(Number(event.target.value || 0));
-  };
-
-  const onQuestionChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setQuestion(event.target.value);
   };
 
   const runCall = async <T,>(setter: (next: AsyncState<T>) => void, fn: () => Promise<T>) => {
@@ -124,14 +117,6 @@ export default function DiagnosticsPage() {
     });
   };
 
-  const onAskGuru = async () => {
-    await runCall(setAskState, async () =>
-      askGuru(safeUserId, {
-        question: question.trim(),
-      }),
-    );
-  };
-
   const onLoadDebugSet = async () => {
     await runCall(setDebugState, async () => {
       const [sessions, alankar, phrase, analytics, student] = await Promise.all([
@@ -187,20 +172,6 @@ export default function DiagnosticsPage() {
         </div>
         <section className="grid">
           <ResultCard title="Analytics (Full Set)" state={analyticsFullState} />
-        </section>
-      </section>
-
-      <section className="card">
-        <h2>Ask Endpoint</h2>
-        <label>
-          Question
-          <input value={question} onChange={onQuestionChange} />
-        </label>
-        <div className="row">
-          <button onClick={onAskGuru}>Ask Guru</button>
-        </div>
-        <section className="grid">
-          <ResultCard title="Ask" state={askState} />
         </section>
       </section>
 

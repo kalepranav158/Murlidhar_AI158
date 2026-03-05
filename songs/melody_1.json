@@ -1,0 +1,92 @@
+{
+  "id": "melody_1",
+  "type": "melody",
+  "level": "beginner",
+  "title": "Twinkle Twinkle Little Star (Traditional)",
+  "required_accuracy": 78,
+  "required_rhythm_index": 0.6,
+  "required_technique_score": 0.0,
+  "required_composite_score": 0.65,
+  "unlock_next": "melody_2",
+  "base_tempo": 72,
+  "phrases": [
+    {
+      "id": 0,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Sa", "time": 0.5 },
+        { "note": "Madhya Pa", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Madhya Dha", "time": 2.0 },
+        { "note": "Madhya Dha", "time": 2.5 },
+        { "note": "Madhya Pa", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 1,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Ma", "time": 0.0 },
+        { "note": "Madhya Ma", "time": 0.5 },
+        { "note": "Madhya Ga", "time": 1.0 },
+        { "note": "Madhya Ga", "time": 1.5 },
+        { "note": "Madhya Re", "time": 2.0 },
+        { "note": "Madhya Re", "time": 2.5 },
+        { "note": "Madhya Sa", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 2,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Pa", "time": 0.0 },
+        { "note": "Madhya Pa", "time": 0.5 },
+        { "note": "Madhya Ma", "time": 1.0 },
+        { "note": "Madhya Ma", "time": 1.5 },
+        { "note": "Madhya Ga", "time": 2.0 },
+        { "note": "Madhya Ga", "time": 2.5 },
+        { "note": "Madhya Re", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 3,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Pa", "time": 0.0 },
+        { "note": "Madhya Pa", "time": 0.5 },
+        { "note": "Madhya Ma", "time": 1.0 },
+        { "note": "Madhya Ma", "time": 1.5 },
+        { "note": "Madhya Ga", "time": 2.0 },
+        { "note": "Madhya Ga", "time": 2.5 },
+        { "note": "Madhya Re", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 4,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Sa", "time": 0.5 },
+        { "note": "Madhya Pa", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Madhya Dha", "time": 2.0 },
+        { "note": "Madhya Dha", "time": 2.5 },
+        { "note": "Madhya Pa", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 5,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Ma", "time": 0.0 },
+        { "note": "Madhya Ma", "time": 0.5 },
+        { "note": "Madhya Ga", "time": 1.0 },
+        { "note": "Madhya Ga", "time": 1.5 },
+        { "note": "Madhya Re", "time": 2.0 },
+        { "note": "Madhya Re", "time": 2.5 },
+        { "note": "Madhya Sa", "time": 3.0 }
+      ]
+    }
+  ]
+}

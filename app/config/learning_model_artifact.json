@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "trained_at": "2026-03-05T00:00:00+00:00",
+  "feature_names": [
+    "avg_pitch_error",
+    "avg_timing_error",
+    "pitch_index",
+    "rhythm_index",
+    "consistency_index",
+    "composite_score",
+    "technique_score"
+  ],
+  "weights": [45.0, -0.4, -12.0, 18.0, 16.0, 10.0, 20.0, 8.0],
+  "metrics": {
+    "sample_pairs": 0,
+    "mae": null,
+    "reason": "bootstrap_default"
+  }
+}

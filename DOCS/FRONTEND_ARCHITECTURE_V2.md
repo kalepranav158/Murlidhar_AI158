@@ -19,16 +19,22 @@ V2 outcome:
 - Keep user identity propagation as `user_id` query/path.
 - No production dependency on `/debug/*`.
 
-## 3) Current Baseline (v1)
-- Pages in `frontend/src/pages`: Dashboard, Practice, Curriculum, Progress, Diagnostics.
-- Practice API already returns rich payload fields:
+## 3) Current Baseline (Post-V2)
+- Pages in `frontend/src/pages`: Dashboard, Practice Studio, Curriculum, Progress, Practice History, Skill Radar, Diagnostics.
+- V2 modules are implemented under `frontend/src/modules`:
+  - `practice-studio`
+  - `skill-radar`
+  - `practice-history`
+  - `technique-visualizer`
+  - `adaptive-coach`
+- Practice API returns rich payload fields:
   - `detected_notes`
   - `alignment_debug`
   - `techniques`
   - `technique_details`
   - `adaptive_plan`
   - `song_adaptive_plan`
-- Analytics supports radar and trend endpoints.
+- Analytics supports radar/trend and adaptive recommendation endpoints.
 - Sessions API supports timeline source data (`timestamp`, scores, indices).
 
 ## 4) V2 Frontend Module Topology
@@ -188,3 +194,23 @@ This architecture is synchronized with:
 - `DOCS/ARCHITECTURE.md`
 - `DOCS/CHANGELOG.md`
 - `sprint/CURRENT_SPRINT.md`
+
+## 12) Post-V2 Architecture Track (Approved)
+
+### 12.1 Melody Content Domain (new type)
+- Add melody as a dedicated content type (not an alias of existing song type).
+- Extend catalog/content contracts to carry explicit content typing.
+- Add melody practice path with phrase-level handling while keeping existing song/alankar flows stable.
+
+### 12.2 Learning Engine Upgrade (ML-first)
+- Add backend components:
+  - skill profile builder
+  - learning difficulty estimator
+  - recommendation model runner
+- Train using existing session/history data.
+- Persist model artifact offline and load it at backend startup for inference.
+
+### 12.3 Inference Surface + Frontend Wiring
+- Expose recommendation/skill-profile/difficulty inference outputs through backend APIs.
+- Render model outputs in frontend learning surfaces with deterministic fallback states.
+- Preserve no-frontend-progression-logic constraint while enriching guidance UX.

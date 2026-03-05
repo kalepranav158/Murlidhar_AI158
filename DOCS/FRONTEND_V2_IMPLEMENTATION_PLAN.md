@@ -1,6 +1,6 @@
 # Frontend V2 Implementation Plan (Synced)
 
-Status: Implemented and synchronized (created 2026-03-04)
+Status: V2 implemented; post-V2 slices 1-5 completed (2026-03-05)
 
 This plan is sequenced to match the approved V2 rollout order and current backend contracts.
 
@@ -10,6 +10,13 @@ This plan is sequenced to match the approved V2 rollout order and current backen
 - [x] Milestone V2.3 — Practice History timeline
 - [x] Milestone V2.4 — Technique Visualizer
 - [x] Milestone V2.5 — Adaptive Coaching UI
+
+## 0.1) Post-V2 Slice Status
+- [x] Slice 1 — Documentation + architecture rebaseline
+- [x] Slice 2 — Melody content type foundation
+- [x] Slice 3 — Melody content expansion pack
+- [x] Slice 4 — Learning engine upgrade (ML-first)
+- [x] Slice 5 — Frontend learning-intelligence wiring
 
 ## 1) Execution Order (Approved)
 1. Practice Studio visualization
@@ -150,10 +157,55 @@ Exit criteria:
 - Optional payload segments may be absent:
   - mitigation: explicit null-safe UI contracts
 
-## 6) Definition of Done (V2 Planning Stage)
-- Architecture defined and documented.
-- Phased implementation sequence locked.
-- Contract mappings documented by feature.
-- Existing docs synchronized with this plan.
+## 6) Definition of Done (V2 Delivered)
+- All V2.1–V2.5 milestones implemented and build-validated.
+- Practice Studio, Skill Radar, Practice History, Technique Visualizer, and Adaptive Coach shipped in app navigation.
+- Adaptive coaching finalized to deterministic next-step guidance (no runtime LLM drill dependency).
 
-Implementation begins only when explicitly requested.
+## 7) Post-V2 Execution Backlog
+
+### Slice 2 — Melody Content Type Foundation
+Objective:
+- Introduce a dedicated melody content type with explicit contracts and backend domain handling.
+
+Planned outputs:
+- Content-type model extension (melody separate from song/alankar)
+- Melody practice routing/service path
+- Catalog integration contract updates
+
+### Slice 3 — Melody Content Expansion Pack
+Objective:
+- Add first melody content set and integrate into selection/practice flows.
+
+Planned outputs:
+- `songs/melody_1.json`
+- `songs/melody_2.json`
+- `songs/melody_3.json`
+- Frontend catalog visibility + practice mode compatibility
+
+### Slice 4 — Learning Engine Upgrade (ML-first)
+Objective:
+- Add model-backed recommendation pipeline using existing session/history data.
+
+Planned outputs:
+- Skill profile builder
+- Learning difficulty estimator
+- Recommendation model training pipeline (offline)
+- Model artifact loading at backend startup
+- Inference endpoint surface for recommendation outputs
+
+### Slice 5 — Frontend Learning-Intelligence Wiring
+Objective:
+- Surface ML recommendation outputs and melody-type workflows in UI.
+
+Planned outputs:
+- Recommendation rendering in learning surfaces
+- Difficulty/skill-profile visibility for practice guidance
+- Deterministic fallback UI when model output is unavailable
+
+## 8) Locked Decisions (Confirmed 2026-03-04)
+- Delivery mode: full-stack incremental by feature slice.
+- Melody strategy: new content type (not reused song type).
+- Recommendation strategy: ML-first.
+- Training data source: existing session/history data only.
+- Model serving mode: offline-trained model loaded at backend startup.

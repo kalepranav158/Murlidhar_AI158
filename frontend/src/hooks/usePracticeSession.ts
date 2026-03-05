@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { submitAlankarPractice, submitFullSongPractice, submitSongPractice } from "../api";
+import {
+  submitAlankarPractice,
+  submitFullSongPractice,
+  submitMelodyPractice,
+  submitSongPractice,
+} from "../api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
 import type { ApiResult, PracticeResultNormalized } from "../types/normalized";
 
@@ -45,6 +50,25 @@ export function usePracticeSession() {
     }
   };
 
+  const submitMelody = async (input: {
+    userId: string;
+    melodyId: string;
+    phraseIndex: number;
+    tempo?: number;
+    audioFile: File;
+  }) => {
+    setPracticeState({ loading: true, error: null, data: null });
+    try {
+      const payload = await submitMelodyPractice(input);
+      setPracticeState({ loading: false, error: null, data: payload });
+      return payload;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setPracticeState({ loading: false, error: message, data: null });
+      throw error;
+    }
+  };
+
   const submitFullSong = async (input: {
     userId: string;
     songId: string;
@@ -66,6 +90,7 @@ export function usePracticeSession() {
     practiceState,
     submitAlankar,
     submitSong,
+    submitMelody,
     submitFullSong,
   };
 }

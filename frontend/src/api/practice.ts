@@ -54,6 +54,29 @@ export const submitSongPractice = async (input: {
   return normalizePracticeResult(payload);
 };
 
+export const submitMelodyPractice = async (input: {
+  userId: string;
+  melodyId: string;
+  phraseIndex: number;
+  tempo?: number;
+  audioFile: File;
+}) => {
+  const payload = await apiRequest<PracticeApi | MessagePayload>(
+    `/practice/melody/${encodeURIComponent(input.userId)}/${encodeURIComponent(input.melodyId)}/${input.phraseIndex}`,
+    {
+      method: "POST",
+      query: {
+        tempo: input.tempo ?? 60,
+      },
+      body: appendFile(input.audioFile),
+      timeoutMs: 30000,
+      retries: 0,
+    },
+  );
+
+  return normalizePracticeResult(payload);
+};
+
 export const submitFullSongPractice = async (input: {
   userId: string;
   songId: string;

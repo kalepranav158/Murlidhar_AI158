@@ -5,7 +5,13 @@ import { useAnalytics } from "../hooks/useAnalytics";
 
 export default function ProgressPage() {
   const [userId, setUserId] = useState("demo_user");
-  const { analyticsState, trendState, loadProgress } = useAnalytics();
+  const {
+    analyticsState,
+    learningDifficultyState,
+    learningRecommendationState,
+    trendState,
+    loadProgress,
+  } = useAnalytics();
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
@@ -32,6 +38,18 @@ export default function ProgressPage() {
   }, [loadProgress, safeUserId]);
 
   const analytics = analyticsState.data?.data;
+  const difficultyPayload = learningDifficultyState.data;
+  const recommendationPayload = learningRecommendationState.data;
+
+  const difficulty =
+    difficultyPayload && !("message" in difficultyPayload)
+      ? difficultyPayload
+      : null;
+  const recommendation =
+    recommendationPayload && !("message" in recommendationPayload)
+      ? recommendationPayload
+      : null;
+
   const trendSeries =
     trendState.data && "accuracy_series" in trendState.data
       ? trendState.data.accuracy_series ?? []
@@ -92,6 +110,32 @@ export default function ProgressPage() {
                 <li key={point.session}>Session {point.session}: {point.accuracy}</li>
               ))}
             </ul>
+          )}
+        </article>
+
+        <article className="result-card">
+          <h3>Learning Guidance</h3>
+          <ScreenState
+            loading={learningDifficultyState.loading || learningRecommendationState.loading}
+            error={learningDifficultyState.error ?? learningRecommendationState.error}
+            emptyMessage={
+              recommendationPayload && "message" in recommendationPayload
+                ? recommendationPayload.message
+                : difficultyPayload && "message" in difficultyPayload
+                  ? difficultyPayload.message
+                  : undefined
+            }
+          />
+
+          {difficulty && recommendation && !learningDifficultyState.loading && !learningRecommendationState.loading && (
+            <div className="stack-sm">
+              <p><strong>Difficulty Level:</strong> {difficulty.difficulty_level ?? "N/A"}</p>
+              <p><strong>Weakest Dimension:</strong> {difficulty.weakest_dimension ?? "N/A"}</p>
+              <p><strong>Recommended Content Type:</strong> {difficulty.recommended_content_type ?? "N/A"}</p>
+              <p><strong>Predicted Next Accuracy:</strong> {recommendation.predicted_next_accuracy ?? "N/A"}</p>
+              <p><strong>Tempo Guidance:</strong> {recommendation.recommended_tempo_adjustment ?? "N/A"}</p>
+              <p><strong>Practice Focus:</strong> {recommendation.practice_focus ?? "N/A"}</p>
+            </div>
           )}
         </article>
       </section>

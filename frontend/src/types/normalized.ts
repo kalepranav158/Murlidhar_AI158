@@ -66,6 +66,7 @@ export type PracticeHistoryNormalized = {
 };
 
 export type PracticeResultNormalized = {
+  contentType: string | null;
   song: string | null;
   phraseIndex: number | null;
   noteAccuracy: number | null;

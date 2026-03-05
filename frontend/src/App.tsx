@@ -5,6 +5,7 @@ import CurriculumPage from "./pages/CurriculumPage";
 import ProgressPage from "./pages/ProgressPage";
 import PracticeHistoryPage from "./pages/PracticeHistoryPage";
 import SkillRadarPage from "./pages/SkillRadarPage";
+import AskPage from "./pages/AskPage";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 
 type ViewKey =
@@ -14,6 +15,7 @@ type ViewKey =
   | "progress"
   | "practice-history"
   | "skill-radar"
+  | "ask"
   | "diagnostics";
 
 const navItems: Array<{ key: ViewKey; label: string }> = [
@@ -23,6 +25,7 @@ const navItems: Array<{ key: ViewKey; label: string }> = [
   { key: "progress", label: "Progress" },
   { key: "practice-history", label: "Practice History" },
   { key: "skill-radar", label: "Skill Radar" },
+  { key: "ask", label: "Ask Guru" },
   { key: "diagnostics", label: "Diagnostics" },
 ];
 
@@ -51,6 +54,7 @@ export default function App() {
       {activeView === "progress" && <ProgressPage />}
       {activeView === "practice-history" && <PracticeHistoryPage />}
       {activeView === "skill-radar" && <SkillRadarPage />}
+      {activeView === "ask" && <AskPage />}
       {activeView === "diagnostics" && <DiagnosticsPage />}
     </>
   );

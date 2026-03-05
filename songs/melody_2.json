@@ -1,0 +1,68 @@
+{
+  "id": "melody_2",
+  "type": "melody",
+  "level": "beginner",
+  "title": "Ode to Joy (Beethoven, Public Domain)",
+  "required_accuracy": 80,
+  "required_rhythm_index": 0.62,
+  "required_technique_score": 0.0,
+  "required_composite_score": 0.68,
+  "unlock_next": "melody_3",
+  "base_tempo": 76,
+  "phrases": [
+    {
+      "id": 0,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Ga", "time": 0.0 },
+        { "note": "Madhya Ga", "time": 0.5 },
+        { "note": "Madhya Ma", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Madhya Pa", "time": 2.0 },
+        { "note": "Madhya Ma", "time": 2.5 },
+        { "note": "Madhya Ga", "time": 3.0 },
+        { "note": "Madhya Re", "time": 3.5 }
+      ]
+    },
+    {
+      "id": 1,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Sa", "time": 0.5 },
+        { "note": "Madhya Re", "time": 1.0 },
+        { "note": "Madhya Ga", "time": 1.5 },
+        { "note": "Madhya Ga", "time": 2.0 },
+        { "note": "Madhya Re", "time": 2.5 },
+        { "note": "Madhya Re", "time": 3.0 }
+      ]
+    },
+    {
+      "id": 2,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Ga", "time": 0.0 },
+        { "note": "Madhya Ga", "time": 0.5 },
+        { "note": "Madhya Ma", "time": 1.0 },
+        { "note": "Madhya Pa", "time": 1.5 },
+        { "note": "Madhya Pa", "time": 2.0 },
+        { "note": "Madhya Ma", "time": 2.5 },
+        { "note": "Madhya Ga", "time": 3.0 },
+        { "note": "Madhya Re", "time": 3.5 }
+      ]
+    },
+    {
+      "id": 3,
+      "difficulty": "easy",
+      "notes": [
+        { "note": "Madhya Sa", "time": 0.0 },
+        { "note": "Madhya Sa", "time": 0.5 },
+        { "note": "Madhya Re", "time": 1.0 },
+        { "note": "Madhya Ga", "time": 1.5 },
+        { "note": "Madhya Re", "time": 2.0 },
+        { "note": "Madhya Sa", "time": 2.5 },
+        { "note": "Madhya Sa", "time": 3.0 }
+      ]
+    }
+  ]
+}

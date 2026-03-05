@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File
-from app.services.practice_service import evaluate_alankar, evaluate_song, evaluate_song_full
+from app.services.practice_service import evaluate_alankar, evaluate_melody, evaluate_song, evaluate_song_full
 from app.schemas.practice import PracticeResponse
 import sys
 
@@ -56,6 +56,30 @@ async def practice_song(
         song_id=song_id,
         phrase_index=phrase_index,
         tempo=tempo
+    )
+
+
+#########################################
+# MELODY PRACTICE ENDPOINT
+#########################################
+@router.post("/melody/{user_id}/{melody_id}/{phrase_index}", response_model=PracticeResponse)
+async def practice_melody(
+    user_id: str,
+    melody_id: str,
+    phrase_index: int,
+    tempo: int = 60,
+    file: UploadFile = File(...),
+):
+    """
+    Melody practice endpoint.
+    Handles phrase-level melody evaluation with melody-domain progression tracking.
+    """
+    return await evaluate_melody(
+        user_id=user_id,
+        upload_file=file,
+        melody_id=melody_id,
+        phrase_index=phrase_index,
+        tempo=tempo,
     )
 
     

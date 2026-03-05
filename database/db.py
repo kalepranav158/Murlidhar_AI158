@@ -1202,6 +1202,29 @@ def is_song_mastered(user_id: str, song_id: str, total_phrases: int):
     return mastered_count >= total_phrases
 
 
+def is_melody_mastered(user_id: str, melody_id: str, total_phrases: int):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM skill_progress
+        WHERE user_id=?
+          AND skill_type='melody_phrase'
+          AND skill_id LIKE ?
+          AND is_unlocked=1
+    """,
+        (user_id, f"{melody_id}:melody_phrase:%"),
+    )
+
+    mastered_count = cursor.fetchone()[0]
+    conn.close()
+
+    return mastered_count >= total_phrases
+
+
 
 
 

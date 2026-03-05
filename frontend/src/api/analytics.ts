@@ -9,6 +9,9 @@ import type {
   AnalyticsSummaryApi,
   AnalyticsTrendApi,
   AnalyticsWeakestPhraseApi,
+  LearningDifficultyApi,
+  LearningModelStatusApi,
+  LearningRecommendationApi,
   MessagePayload,
   StudentAnalyticsApi,
 } from "../types/api";
@@ -121,4 +124,24 @@ export const getAnalyticsWeakestPhrase = async (userId: string, songId: string) 
       query: { user_id: userId, song_id: songId },
     },
   );
+};
+
+export const getAnalyticsLearningDifficulty = async (userId: string) => {
+  return apiRequest<LearningDifficultyApi | MessagePayload>("/analytics/learning/difficulty", {
+    method: "GET",
+    query: { user_id: userId },
+  });
+};
+
+export const getAnalyticsLearningRecommendation = async (userId: string) => {
+  return apiRequest<LearningRecommendationApi | MessagePayload>("/analytics/learning/recommendation", {
+    method: "GET",
+    query: { user_id: userId },
+  });
+};
+
+export const getAnalyticsLearningModelStatus = async () => {
+  return apiRequest<LearningModelStatusApi | MessagePayload>("/analytics/learning/model-status", {
+    method: "GET",
+  });
 };

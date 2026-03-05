@@ -5,7 +5,7 @@ import logging
 from app.services.adaptive_engine import build_snapshot, generate_adaptive_plan
 from app.services.analytics_engine import compute_analytics
 from app.services.llm.feedback_llm import generate_guru_feedback, generate_normal_feedback
-from music.song_loader import load_song
+from music.song_loader import infer_content_type, load_song
 from database.db import (
     save_session,
     is_song_mastered,
@@ -267,6 +267,7 @@ async def evaluate_alankar(
     ]
 
     return {
+        "content_type": "alankar",
         "song": song["title"],
         "phrase_index": phrase_index,
         "alankar_level": level_info,
@@ -297,7 +298,12 @@ async def evaluate_song(
     upload_file,
     song_id: str,
     phrase_index: int,
-    tempo: int
+    tempo: int,
+    expected_content_type: str = "song",
+    phrase_skill_type: str = "phrase",
+    phrase_skill_segment: str = "phrase",
+    include_song_adaptive_plan: bool = True,
+    include_full_song_unlock: bool = True,
 ):
     """
     Song practice evaluation service.
@@ -314,7 +320,13 @@ async def evaluate_song(
     9. Generate feedback
     10. Return response
     """
-    logger.info(f"Song practice: user={user_id}, song={song_id}, phrase={phrase_index}")
+    logger.info(
+        "Content practice: user=%s, content=%s, phrase=%s, type=%s",
+        user_id,
+        song_id,
+        phrase_index,
+        expected_content_type,
+    )
 
     # Validate tempo
     if tempo is None or tempo <= 0:
@@ -327,6 +339,13 @@ async def evaluate_song(
 
     song = load_song(song_path)
     base_tempo = song.get("base_tempo", 60)
+    resolved_content_type = infer_content_type(song, song_id)
+
+    if expected_content_type and resolved_content_type != expected_content_type:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Content type mismatch. Expected '{expected_content_type}', got '{resolved_content_type}'.",
+        )
 
     # Validate phrase index
     if phrase_index < 0 or phrase_index >= len(song["phrases"]):
@@ -410,11 +429,11 @@ async def evaluate_song(
     if song_analytics and song_analytics.get("volatility", 999) >= 8:
         phrase_threshold = 1.1
 
-    phrase_skill_id = f"{song['id']}:phrase:{phrase_index}"
+    phrase_skill_id = f"{song['id']}:{phrase_skill_segment}:{phrase_index}"
     phrase_hash = compute_session_hash(
         user_id,
         {
-            "skill_type": "phrase",
+            "skill_type": phrase_skill_type,
             "skill_id": phrase_skill_id,
             "reference": reference,
         },
@@ -434,27 +453,31 @@ async def evaluate_song(
     update_skill_progress(
         user_id=user_id,
         skill_id=phrase_skill_id,
-        skill_type="phrase",
+        skill_type=phrase_skill_type,
         composite_score=max(0.0, min(1.0, float(result.get("note_accuracy", 0.0)) / 100.0)),
         threshold=phrase_threshold,
         session_hash=phrase_hash,
     )
 
     # Check if full song is unlocked
-    full_song_unlocked = is_song_mastered(
-        user_id=user_id,
-        song_id=song["id"],
-        total_phrases=len(song["phrases"])
-    )
+    full_song_unlocked = False
+    if include_full_song_unlock:
+        full_song_unlocked = is_song_mastered(
+            user_id=user_id,
+            song_id=song["id"],
+            total_phrases=len(song["phrases"])
+        )
 
     # Generate song adaptive plan
-    song_adaptive_plan = generate_song_adaptive_plan(
-        user_id=user_id,
-        song=song,
-        phrase_index=phrase_index,
-        accuracy=result["note_accuracy"],
-        base_tempo=base_tempo
-    )
+    song_adaptive_plan = None
+    if include_song_adaptive_plan:
+        song_adaptive_plan = generate_song_adaptive_plan(
+            user_id=user_id,
+            song=song,
+            phrase_index=phrase_index,
+            accuracy=result["note_accuracy"],
+            base_tempo=base_tempo
+        )
 
     # Generate general adaptive plan
     adaptive_plan = generate_adaptive_plan(
@@ -499,6 +522,7 @@ async def evaluate_song(
     ]
 
     return {
+        "content_type": resolved_content_type,
         "song": song["title"],
         "phrase_index": phrase_index,
         "dtw_cost": float(cost),
@@ -523,6 +547,27 @@ async def evaluate_song(
         "reference_notes": reference_notes,
         "curriculum": curriculum_info
     }
+
+
+async def evaluate_melody(
+    user_id: str,
+    upload_file,
+    melody_id: str,
+    phrase_index: int,
+    tempo: int,
+):
+    return await evaluate_song(
+        user_id=user_id,
+        upload_file=upload_file,
+        song_id=melody_id,
+        phrase_index=phrase_index,
+        tempo=tempo,
+        expected_content_type="melody",
+        phrase_skill_type="melody_phrase",
+        phrase_skill_segment="melody_phrase",
+        include_song_adaptive_plan=False,
+        include_full_song_unlock=False,
+    )
 
 
 
@@ -550,7 +595,8 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
 
     song = load_song(song_path)
 
-    if song.get("type") != "song":
+    resolved_content_type = infer_content_type(song, song_id)
+    if resolved_content_type != "song":
         raise HTTPException(status_code=400, detail="Not a song")
 
     # Check unlock
@@ -595,6 +641,7 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     # Full-song adaptive logic can be added later
     return {
         "mode": "full_song",
+        "content_type": "song",
         "song": song["title"],
         "dtw_cost": float(cost),
         "alignment_debug": {

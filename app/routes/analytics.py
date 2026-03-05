@@ -7,6 +7,13 @@ from app.future_plans.test_dashboard import analytics_dashboard
 from app.services.analytics_services import build_risk_profile
 from database.db import get_weakest_phrase
 from app.routes.response_envelope import no_data_response, error_response
+from app.services.learning_engine import (
+    estimate_learning_difficulty,
+    generate_learning_recommendation,
+    get_learning_model_status,
+    train_and_persist_learning_model,
+)
+from app.services.skill_profile import build_skill_profile
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -207,6 +214,50 @@ def get_recommendation(user_id:str):
         "suggestion": suggestion
     
     }
+
+
+@router.get("/learning/skill-profile")
+def get_learning_skill_profile(user_id: str):
+    profile = build_skill_profile(user_id)
+    if isinstance(profile, dict) and profile.get("message"):
+        return no_data_response(profile["message"])
+    return profile
+
+
+@router.get("/learning/difficulty")
+def get_learning_difficulty(user_id: str):
+    payload = estimate_learning_difficulty(user_id)
+    if payload is None:
+        return no_data_response("No sessions available for difficulty estimation.")
+    return payload
+
+
+@router.get("/learning/recommendation")
+def get_learning_recommendation(user_id: str):
+    payload = generate_learning_recommendation(user_id)
+    if payload is None:
+        return no_data_response("No sessions available for recommendation.")
+    return payload
+
+
+@router.get("/learning/model-status")
+def get_learning_model_metadata():
+    return get_learning_model_status()
+
+
+@router.post("/learning/model-refresh")
+def refresh_learning_model():
+    try:
+        artifact = train_and_persist_learning_model(limit=1000, minimum_pairs=8)
+        metrics = artifact.get("metrics", {}) if isinstance(artifact, dict) else {}
+        return {
+            "status": "ok",
+            "sample_pairs": metrics.get("sample_pairs"),
+            "mae": metrics.get("mae"),
+            "reason": metrics.get("reason"),
+        }
+    except Exception as e:
+        return error_response("Error refreshing learning model", error=str(e))
 
 
 @router.get("/consistency-details")

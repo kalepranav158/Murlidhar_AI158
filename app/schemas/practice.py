@@ -35,6 +35,7 @@ class CurriculumResponse(BaseModel):
 
 
 class PracticeResponse(BaseModel):
+    content_type: Optional[str] = None
     song: str
     phrase_index: int
     dtw_cost: float

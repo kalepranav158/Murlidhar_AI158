@@ -7,7 +7,14 @@ import { useStudentProfile } from "../hooks/useStudentProfile";
 export default function DashboardPage() {
   const [userId, setUserId] = useState("demo_user");
   const { profileState, streakState, loadProfile, loadStreak } = useStudentProfile();
-  const { analyticsState, loadAnalytics } = useAnalytics();
+  const {
+    analyticsState,
+    learningDifficultyState,
+    learningModelState,
+    learningRecommendationState,
+    loadAnalytics,
+    loadLearningIntelligence,
+  } = useAnalytics();
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
@@ -21,6 +28,7 @@ export default function DashboardPage() {
       await Promise.all([
         loadProfile(safeUserId),
         loadAnalytics(safeUserId),
+        loadLearningIntelligence(safeUserId),
         loadStreak(safeUserId),
       ]);
     } catch {
@@ -37,13 +45,30 @@ export default function DashboardPage() {
     void Promise.all([
       loadProfile(safeUserId),
       loadAnalytics(safeUserId),
+      loadLearningIntelligence(safeUserId),
       loadStreak(safeUserId),
     ]).catch(() => undefined);
-  }, [loadAnalytics, loadProfile, loadStreak, safeUserId]);
+  }, [loadAnalytics, loadLearningIntelligence, loadProfile, loadStreak, safeUserId]);
 
   const profile = profileState.data?.data;
   const analytics = analyticsState.data?.data;
   const streak = streakState.data?.data;
+  const difficultyPayload = learningDifficultyState.data;
+  const recommendationPayload = learningRecommendationState.data;
+  const modelPayload = learningModelState.data;
+
+  const difficulty =
+    difficultyPayload && !("message" in difficultyPayload)
+      ? difficultyPayload
+      : null;
+  const recommendation =
+    recommendationPayload && !("message" in recommendationPayload)
+      ? recommendationPayload
+      : null;
+  const modelStatus =
+    modelPayload && !("message" in modelPayload)
+      ? modelPayload
+      : null;
 
   return (
     <div className="container">
@@ -105,6 +130,51 @@ export default function DashboardPage() {
               <p><strong>Slope:</strong> {analytics.slope ?? "N/A"}</p>
               <p><strong>Consistency:</strong> {analytics.consistencyIndex ?? "N/A"}</p>
               <p><strong>Composite:</strong> {analytics.compositeScore ?? "N/A"}</p>
+            </div>
+          )}
+        </article>
+
+        <article className="result-card">
+          <h3>Learning Recommendation</h3>
+          <ScreenState
+            loading={learningRecommendationState.loading || learningDifficultyState.loading}
+            error={learningRecommendationState.error ?? learningDifficultyState.error}
+            emptyMessage={
+              recommendationPayload && "message" in recommendationPayload
+                ? recommendationPayload.message
+                : difficultyPayload && "message" in difficultyPayload
+                  ? difficultyPayload.message
+                  : undefined
+            }
+          />
+          {recommendation && difficulty && !learningRecommendationState.loading && !learningDifficultyState.loading && (
+            <div className="stack-sm">
+              <p><strong>Difficulty:</strong> {difficulty.difficulty_level ?? "N/A"}</p>
+              <p><strong>Predicted Next Accuracy:</strong> {recommendation.predicted_next_accuracy ?? "N/A"}</p>
+              <p><strong>Tempo:</strong> {recommendation.recommended_tempo_adjustment ?? "N/A"}</p>
+              <p><strong>Focus:</strong> {recommendation.practice_focus ?? "N/A"}</p>
+              <p><strong>Recommended Content Type:</strong> {recommendation.recommended_content_type ?? "N/A"}</p>
+            </div>
+          )}
+        </article>
+
+        <article className="result-card">
+          <h3>Learning Model</h3>
+          <ScreenState
+            loading={learningModelState.loading}
+            error={learningModelState.error}
+            emptyMessage={
+              modelPayload && "message" in modelPayload
+                ? modelPayload.message
+                : undefined
+            }
+          />
+          {modelStatus && !learningModelState.loading && !learningModelState.error && (
+            <div className="stack-sm">
+              <p><strong>Source:</strong> {modelStatus.source ?? "N/A"}</p>
+              <p><strong>Sample Pairs:</strong> {modelStatus.sample_pairs ?? "N/A"}</p>
+              <p><strong>MAE:</strong> {modelStatus.mae ?? "N/A"}</p>
+              <p><strong>Reason:</strong> {modelStatus.reason ?? "N/A"}</p>
             </div>
           )}
         </article>
