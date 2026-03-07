@@ -75,14 +75,15 @@ npm run dev:all
 ## Authentication
 
 - Open the frontend and sign in before using the dashboard.
-- Default credentials for local development:
-	- Username: `gokul`
-	- Password: `venora123`
-- For production-like setups, set `VENORA_AUTH_USERNAME` and `VENORA_AUTH_PASSWORD` in your environment.
-- To enable Google Sign-In:
+- Recommended authentication mode: Google Sign-In.
 	- Add your Google OAuth Web client ID to backend env: `VENORA_GOOGLE_CLIENT_ID=<your-client-id>`
 	- Add the same value in `frontend/.env`: `VITE_GOOGLE_CLIENT_ID=<your-client-id>`
 	- Restart backend and frontend.
+
+- Password login is an optional local fallback.
+	- Backend reads `VENORA_AUTH_USERNAME` and `VENORA_AUTH_PASSWORD`.
+	- If not set, fallback defaults are `gokul` / `venora123`.
+	- If your project standard username is `kalepranav158`, set `VENORA_AUTH_USERNAME=kalepranav158` in environment.
 
 ## Validation
 

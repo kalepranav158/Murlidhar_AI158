@@ -11,7 +11,7 @@ type LoginPageProps = {
 
 export default function LoginPage(props: LoginPageProps) {
   const { loading, error, onSubmit, onGoogleCredential, googleClientId } = props;
-  const [username, setUsername] = useState("gokul");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [googleInitError, setGoogleInitError] = useState<string | null>(null);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
