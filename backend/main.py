@@ -7,7 +7,6 @@ import json
 from backend.api import sessions
 from backend.api import analytics
 from backend.api import ask
-from backend.api import debug
 from backend.api import student
 from backend.api import auth
 import logging
@@ -58,8 +57,10 @@ app.include_router(ask.router)
 app.include_router(student.router)
 app.include_router(auth.router)
 
-DEBUG_ENDPOINTS_ENABLED = os.getenv("DEBUG_ENDPOINTS", "false").lower() == "true"
+# Force-disable debug endpoints.
+DEBUG_ENDPOINTS_ENABLED = False
 if DEBUG_ENDPOINTS_ENABLED:
+    from backend.api import debug
     app.include_router(debug.router)
 
 

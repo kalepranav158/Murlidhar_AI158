@@ -132,39 +132,21 @@ body::after {
 }
 
 .auth-shell {
-  min-height: calc(100vh - 40px);
   display: grid;
   align-content: center;
   gap: 14px;
-  position: relative;
-  isolation: isolate;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(34, 69, 79, 0.44);
-  box-shadow: 0 16px 30px rgba(8, 26, 46, 0.28);
-  background:
-    linear-gradient(118deg, rgba(11, 34, 49, 0.76) 0%, rgba(26, 74, 81, 0.62) 42%, rgba(124, 80, 35, 0.58) 100%),
-    url("./assets/documentation/img1.jpg") center / cover no-repeat;
+  min-height: calc(100vh - 40px);
 }
 
 .auth-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background: radial-gradient(circle at 18% 24%, rgba(246, 219, 161, 0.28), transparent 44%);
+  content: none;
 }
 
 .auth-hero {
   text-align: center;
-}
-
-.auth-shell .card {
-  background: linear-gradient(145deg, rgba(251, 248, 240, 0.92), rgba(238, 245, 244, 0.9));
-  border-color: rgba(42, 87, 93, 0.42);
-  box-shadow: 0 10px 20px rgba(6, 21, 34, 0.22);
-  backdrop-filter: blur(4px);
+  max-width: 560px;
+  margin-inline: auto;
+  width: 100%;
 }
 
 .auth-kicker {
@@ -188,7 +170,7 @@ body::after {
 }
 
 .auth-card {
-  max-width: 480px;
+  max-width: 560px;
   margin-inline: auto;
   width: 100%;
 }
@@ -793,10 +775,6 @@ pre {
   .practice-content-id-control {
     grid-column: span 1;
   }
-
-  .auth-shell {
-    border-radius: 12px;
-  }
 }
 
 .reference-notes-panel {
@@ -1199,11 +1177,6 @@ pre {
     flex-direction: column;
     align-items: flex-start;
     padding-top: 10px;
-  }
-
-  .auth-shell {
-    min-height: auto;
-    padding-top: 24px;
   }
 
   .metronome-panel {
