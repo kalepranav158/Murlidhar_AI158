@@ -2,44 +2,38 @@
 # Python
 # -------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 
 # -------------------------
 # Virtual Environments / IDE
 # -------------------------
 .vscode/
 .env
+.env.*
 
 # -------------------------
-# Audio / Media Files
+# Frontend Build Artifacts
 # -------------------------
-*.wav
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# -------------------------
+# Audio / Media (generated)
+# -------------------------
 *.mp3
 *.mp4
-sample_sounds/
 
 # -------------------------
-# Database
+# Database / Vector Store Artifacts
 # -------------------------
 *.db
 practice_sessions.db
-app/vector_db/
-
+data/vector_db/
 
 # -------------------------
 # OS Files
 # -------------------------
 .DS_Store
 Thumbs.db
-
-# -------------------------
-# txt files
-# -------------------------
-imp_commands.txt
-learnings.txt
-problems.txt
-
-# -------------------------
-# test files
-# -------------------------
-test.py

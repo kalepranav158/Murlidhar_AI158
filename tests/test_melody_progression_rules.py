@@ -1,10 +1,10 @@
-import json
+﻿import json
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-import database.db as db
-from app.services.curriculum_service import evaluate_curriculum_progress
+import backend.models.db as db
+from backend.services.curriculum_service import evaluate_curriculum_progress
 
 
 @contextmanager
@@ -63,7 +63,7 @@ def test_melody_unlocks_next_after_full_mastery():
     with _temporary_db():
         _seed_student(user_id, ["melody_1"])
 
-        melody_path = Path("songs") / "melody_1.json"
+        melody_path = Path("data/songs/catalog") / "melody_1.json"
         with melody_path.open("r", encoding="utf-8") as handle:
             melody_payload = json.load(handle)
 
@@ -89,3 +89,4 @@ def test_curriculum_content_lists_are_sorted():
 
         assert unlocked_content == sorted(unlocked_content)
         assert mastered_content == sorted(mastered_content)
+

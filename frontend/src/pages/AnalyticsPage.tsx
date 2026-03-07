@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import { getAnalyticsTrend, getSessions } from "../api";
 import { isMessagePayload } from "../api/adapters";
 import ScreenState from "../components/ScreenState";
@@ -13,6 +12,7 @@ import {
 } from "../modules/analytics/options/buildAnalyticsOptions";
 import type { AnalyticsTrendApi, MessagePayload, SessionsApi } from "../types/api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 type AnalyticsChartPayload = {
   trend: AnalyticsTrendApi | MessagePayload;
@@ -20,7 +20,7 @@ type AnalyticsChartPayload = {
 };
 
 export default function AnalyticsPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const [chartState, setChartState] = useState<AsyncState<AnalyticsChartPayload>>(initialAsyncState());
   const hasLoadedOnVisitRef = useRef(false);
 
@@ -214,19 +214,15 @@ export default function AnalyticsPage() {
     void onLoadChartSet().catch(() => undefined);
   }, [safeUserId]);
 
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
-
   return (
     <div className="container">
       <h1>Analytics</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <div className="row">
           <button onClick={onLoadChartSet}>Refresh Analytics Charts</button>
         </div>

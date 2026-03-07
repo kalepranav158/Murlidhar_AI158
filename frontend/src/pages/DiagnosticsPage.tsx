@@ -10,21 +10,26 @@ import {
 } from "../api";
 import ResultCard from "../components/ResultCard";
 import { initialAsyncState, type AsyncState } from "../types/ui";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function DiagnosticsPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const [alankarId, setAlankarId] = useState("basic_alankar");
   const [songId, setSongId] = useState("song_1");
-  const [debugPhraseId, setDebugPhraseId] = useState(0);
+  const [debugPhraseInput, setDebugPhraseInput] = useState("0");
 
   const [debugState, setDebugState] = useState(initialAsyncState<unknown>());
   const [healthState, setHealthState] = useState(initialAsyncState<unknown>());
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
+  const safeDebugPhraseId = useMemo(() => {
+    const parsed = Number(debugPhraseInput);
+    if (!Number.isFinite(parsed)) {
+      return 0;
+    }
 
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
+    return Math.max(0, Math.floor(parsed));
+  }, [debugPhraseInput]);
 
   const onAlankarIdChange = (event: ChangeEvent<HTMLInputElement>) => {
     setAlankarId(event.target.value);
@@ -35,7 +40,11 @@ export default function DiagnosticsPage() {
   };
 
   const onDebugPhraseIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setDebugPhraseId(Number(event.target.value || 0));
+    setDebugPhraseInput(event.target.value);
+  };
+
+  const onDebugPhraseIdBlur = () => {
+    setDebugPhraseInput(String(safeDebugPhraseId));
   };
 
   const runCall = async <T,>(setter: (next: AsyncState<T>) => void, fn: () => Promise<T>) => {
@@ -54,7 +63,7 @@ export default function DiagnosticsPage() {
       const [sessions, alankar, phrase, analytics, student] = await Promise.all([
         getDebugSessions(safeUserId),
         getDebugAlankar(safeUserId, alankarId.trim()),
-        getDebugPhrase(safeUserId, songId.trim(), debugPhraseId),
+        getDebugPhrase(safeUserId, songId.trim(), safeDebugPhraseId),
         getDebugAnalytics(safeUserId),
         getDebugStudent(safeUserId),
       ]);
@@ -80,10 +89,10 @@ export default function DiagnosticsPage() {
       <section className="card">
         <h2>Context</h2>
         <p className="muted">Analytics charts are available in the dedicated Analytics page. Diagnostics stays debug-only.</p>
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <label>
           Alankar ID
           <input value={alankarId} onChange={onAlankarIdChange} />
@@ -94,7 +103,13 @@ export default function DiagnosticsPage() {
         </label>
         <label>
           Debug Phrase ID
-          <input type="number" min={0} value={debugPhraseId} onChange={onDebugPhraseIdChange} />
+          <input
+            type="number"
+            min={0}
+            value={debugPhraseInput}
+            onChange={onDebugPhraseIdChange}
+            onBlur={onDebugPhraseIdBlur}
+          />
         </label>
       </section>
 

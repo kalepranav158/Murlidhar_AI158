@@ -1,15 +1,19 @@
-import sqlite3
+﻿import sqlite3
 from pathlib import Path
+
+import pytest
+
+pytest.importorskip("fastapi")
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import database.db as db
-from app.routes import analytics as analytics_route
-from app.routes import debug as debug_route
-from app.routes import sessions as sessions_route
-from app.routes import songs as songs_route
-from app.routes import student as student_route
+import backend.models.db as db
+from backend.api import analytics as analytics_route
+from backend.api import debug as debug_route
+from backend.api import sessions as sessions_route
+from backend.api import songs as songs_route
+from backend.api import student as student_route
 
 
 def _build_client(router) -> TestClient:
@@ -129,3 +133,4 @@ def test_songs_phrase_reference_invalid_phrase_index():
     assert response.status_code == 400
     payload = response.json()
     assert payload.get("detail") == "Invalid phrase index"
+

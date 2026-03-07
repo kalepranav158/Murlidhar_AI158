@@ -1,12 +1,12 @@
-import json
+﻿import json
 import sqlite3
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import database.db as db
-from app.services.learning_engine import (
+import backend.models.db as db
+from backend.services.learning_engine import (
     estimate_learning_difficulty,
     generate_learning_recommendation,
     predict_next_accuracy,
@@ -113,3 +113,4 @@ def test_learning_difficulty_and_recommendation_payloads():
         assert "practice_focus" in recommendation
         assert "recommended_tempo_adjustment" in recommendation
         assert "recommended_content_type" in recommendation
+

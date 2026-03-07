@@ -1,17 +1,13 @@
 import { useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
 import ScreenState from "../components/ScreenState";
 import { useStudentProfile } from "../hooks/useStudentProfile";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function CurriculumPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const { curriculumState, loadCurriculum } = useStudentProfile();
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
-
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
 
   const onLoadCurriculum = async () => {
     try {
@@ -28,10 +24,10 @@ export default function CurriculumPage() {
       <h1>Curriculum</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <div className="row">
           <button onClick={onLoadCurriculum}>Load Curriculum</button>
         </div>

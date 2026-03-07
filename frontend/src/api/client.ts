@@ -1,3 +1,5 @@
+import { clearStoredAuth, getStoredAuthToken } from "../utils/authStorage";
+
 export const API_BASE_URL =
   (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
     ?.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
@@ -71,6 +73,7 @@ const requestOnce = async <T>(
   const method = config.method ?? "GET";
   const url = `${API_BASE_URL}${path}${toQueryString(config.query)}`;
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const authToken = getStoredAuthToken();
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -81,6 +84,7 @@ const requestOnce = async <T>(
       signal: controller.signal,
       headers: {
         ...(config.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...config.headers,
       },
       body:
@@ -92,6 +96,9 @@ const requestOnce = async <T>(
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        clearStoredAuth();
+      }
       throw await toError(response);
     }
 

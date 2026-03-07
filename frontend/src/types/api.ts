@@ -257,3 +257,33 @@ export type DebugSessionsApi = {
 export type RootHealthApi = {
   message?: string;
 };
+
+export type AuthLoginRequestApi = {
+  username: string;
+  password: string;
+};
+
+export type AuthGoogleLoginRequestApi = {
+  credential: string;
+};
+
+export type AuthLoginResponseApi = {
+  access_token: string;
+  token_type: "bearer" | string;
+  username: string;
+  auth_provider?: "password" | "google" | string;
+  email?: string | null;
+  expires_at?: string;
+};
+
+export type AuthVerifyResponseApi = {
+  authenticated: boolean;
+  username: string;
+  auth_provider?: "password" | "google" | string;
+  email?: string | null;
+  expires_at?: string;
+};
+
+export type AuthLogoutResponseApi = {
+  success: boolean;
+};

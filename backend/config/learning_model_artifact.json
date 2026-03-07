@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "trained_at": "2026-03-07T04:21:53.970626+00:00",
+  "feature_names": [
+    "avg_pitch_error",
+    "avg_timing_error",
+    "pitch_index",
+    "rhythm_index",
+    "consistency_index",
+    "composite_score",
+    "technique_score"
+  ],
+  "weights": [
+    10.616605,
+    0.898553,
+    -1.37904,
+    10.598634,
+    11.995645,
+    13.439279,
+    10.481176,
+    16.559666
+  ],
+  "metrics": {
+    "sample_pairs": 11,
+    "mae": 0.0,
+    "reason": "trained_from_sessions"
+  }
+}

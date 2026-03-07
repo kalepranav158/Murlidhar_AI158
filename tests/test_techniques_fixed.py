@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
 Unit tests for techniques detector (fixed version).
 Tests frequency bounds, confidence gating, outlier clamping, and reference comparison.
 """
 import numpy as np
-from audio.techniques import detect_techniques, compare_with_reference
+from backend.utils.audio.techniques import detect_techniques, compare_with_reference
 
 
 def test_frequency_bounds_reject_glitches():
@@ -22,7 +22,7 @@ def test_frequency_bounds_reject_glitches():
     result = detect_techniques(pc)
     # With glitch filtered, we should get a cleaner detection (or fewer total meends)
     assert "meend" in result
-    print(f"✓ Glitches filtered: {len(result['meend'])} meends detected (should not include 8kHz spike)")
+    print(f"âœ“ Glitches filtered: {len(result['meend'])} meends detected (should not include 8kHz spike)")
 
 
 def test_confidence_gating_rejects_low_conf():
@@ -37,7 +37,7 @@ def test_confidence_gating_rejects_low_conf():
     result = detect_techniques(pc)
     # Low confidence frame should break continuity
     assert "meend" in result
-    print(f"✓ Low-conf frames filtered: {len(result['meend'])} meends detected")
+    print(f"âœ“ Low-conf frames filtered: {len(result['meend'])} meends detected")
 
 
 def test_outlier_clamping():
@@ -55,7 +55,7 @@ def test_outlier_clamping():
     if meends:
         for m in meends:
             assert abs(m["cents_change"]) <= 600.0, f"Meend with {m['cents_change']} cents exceeds clamp"
-    print(f"✓ Outliers clamped: {len(meends)} meends, all within bounds")
+    print(f"âœ“ Outliers clamped: {len(meends)} meends, all within bounds")
 
 
 def test_compare_with_reference_valid_overlap():
@@ -77,7 +77,7 @@ def test_compare_with_reference_valid_overlap():
     # Phrase window is 0.0 to 1.0, meend is 0.2 to 0.8
     # Overlap is 0.6 sec, phrase is 1.0 sec -> 60% overlap (>50%) -> matched
     assert result["technique_score"] > 0, "Meend should overlap phrase window"
-    print(f"✓ Reference overlap valid: technique_score={result['technique_score']}")
+    print(f"âœ“ Reference overlap valid: technique_score={result['technique_score']}")
 
 
 def test_compare_with_reference_no_overlap():
@@ -98,7 +98,7 @@ def test_compare_with_reference_no_overlap():
     result = compare_with_reference(detected, reference)
     # Meend at 2.0-2.5 is completely outside phrase 0.0-1.0
     assert result["technique_score"] == 0.0, "Non-overlapping meend should not score"
-    print(f"✓ Reference overlap rejection: technique_score={result['technique_score']}")
+    print(f"âœ“ Reference overlap rejection: technique_score={result['technique_score']}")
 
 
 def test_monotonic_proportion_with_micro_jitter():
@@ -111,7 +111,7 @@ def test_monotonic_proportion_with_micro_jitter():
     for i in range(30):
         # Primary trend: +2 cents per frame
         base_freq = 440.0 * (2 ** ((i * 2) / 1200.0))
-        # Add tiny jitter: ±0.2 cents
+        # Add tiny jitter: Â±0.2 cents
         jitter = np.random.uniform(-0.2, 0.2)
         freq_with_jitter = base_freq * (2 ** (jitter / 1200.0))
         pc.append({"freq": freq_with_jitter, "time": t, "conf": 0.95})
@@ -122,7 +122,7 @@ def test_monotonic_proportion_with_micro_jitter():
     # Should detect upward trend despite jitter
     assert len(meends) > 0, "Jitter should not prevent detection of strong trend"
     assert meends[0]["direction"] == "up"
-    print(f"✓ Micro-jitter handled: {len(meends)} meends detected correctly")
+    print(f"âœ“ Micro-jitter handled: {len(meends)} meends detected correctly")
 
 
 if __name__ == "__main__":
@@ -133,4 +133,5 @@ if __name__ == "__main__":
     test_compare_with_reference_valid_overlap()
     test_compare_with_reference_no_overlap()
     test_monotonic_proportion_with_micro_jitter()
-    print("\n✅ All tests passed!")
+    print("\nâœ… All tests passed!")
+

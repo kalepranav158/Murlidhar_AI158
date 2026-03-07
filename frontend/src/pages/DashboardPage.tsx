@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import ScreenState from "../components/ScreenState";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { useStudentProfile } from "../hooks/useStudentProfile";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function DashboardPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const { profileState, streakState, loadProfile, loadStreak } = useStudentProfile();
   const {
     analyticsState,
@@ -18,10 +18,6 @@ export default function DashboardPage() {
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
-
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
 
   const onLoadDashboard = async () => {
     try {
@@ -72,13 +68,19 @@ export default function DashboardPage() {
 
   return (
     <div className="container">
-      <h1>Dashboard</h1>
+      <section className="venora-banner" aria-label="Project banner">
+        <p className="venora-banner-kicker">Hey there...!</p>
+        <h1 className="venora-banner-title">VENORA</h1>
+        <p className="venora-banner-subtitle">AI-Powered Flute Learning Dashboard</p>
+      </section>
+
+      <h2 className="dashboard-page-title">Dashboard</h2>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <div className="row">
           <button onClick={onLoadDashboard}>Refresh Dashboard</button>
         </div>

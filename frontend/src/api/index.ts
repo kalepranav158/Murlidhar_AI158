@@ -8,3 +8,4 @@ export * from "./songs";
 export * from "./ask";
 export * from "./debug";
 export * from "./system";
+export * from "./auth";

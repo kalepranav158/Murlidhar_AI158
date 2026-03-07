@@ -1,5 +1,5 @@
-from dtw.aligner import dtw_align
-from evaluation.scorer import evaluate
+﻿from backend.utils.dtw.aligner import dtw_align
+from backend.utils.evaluation.scorer import evaluate
 
 # Reference phrase (Sa Re Ga Ma)
 reference = [
@@ -23,8 +23,9 @@ result = evaluate(alignment)
 print("DTW Cost:", round(cost, 3))
 print("\nAlignment:")
 for ref, play in alignment:
-    print(f"{ref['note']}  ←→  {play['note']}")
+    print(f"{ref['note']}  â†â†’  {play['note']}")
 
 print("\nEvaluation:")
 for k, v in result.items():
     print(f"{k}: {v}")
+

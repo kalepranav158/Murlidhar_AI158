@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import { getSessions } from "../api";
 import ScreenState from "../components/ScreenState";
 import { useAnalytics } from "../hooks/useAnalytics";
@@ -11,9 +10,10 @@ import {
 } from "../modules/progress-analytics/options/buildProgressAnalyticsOptions";
 import type { MessagePayload, SessionsApi } from "../types/api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function ProgressPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const [sessionsState, setSessionsState] =
     useState<AsyncState<SessionsApi | MessagePayload>>(initialAsyncState());
   const {
@@ -26,10 +26,6 @@ export default function ProgressPage() {
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
-
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
 
   const loadSessions = useCallback(async (targetUserId: string) => {
     setSessionsState({ loading: true, error: null, data: null });
@@ -136,10 +132,10 @@ export default function ProgressPage() {
       <h1>Progress</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <div className="row">
           <button onClick={onLoadProgress}>Refresh Progress</button>
         </div>

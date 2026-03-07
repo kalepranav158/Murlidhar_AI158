@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { askGuru } from "../api";
 import ScreenState from "../components/ScreenState";
 import { initialAsyncState } from "../types/ui";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 const isObjectPayload = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
@@ -22,7 +23,7 @@ type AskField = {
 };
 
 export default function AskPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const [question, setQuestion] = useState("How should I improve rhythm stability?");
   const [askState, setAskState] = useState(initialAsyncState<unknown>());
 
@@ -94,10 +95,6 @@ export default function AskPage() {
       .sort((left, right) => left.key.localeCompare(right.key));
   }, [askObject]);
 
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
-
   const onQuestionChange = (event: ChangeEvent<HTMLInputElement>) => {
     setQuestion(event.target.value);
   };
@@ -121,10 +118,10 @@ export default function AskPage() {
       <h1>Ask Guru</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <label>
           Question
           <input value={question} onChange={onQuestionChange} />
@@ -135,7 +132,7 @@ export default function AskPage() {
       </section>
 
       <section className="card ask-response-panel">
-        <h2>Guru Response</h2>
+        <h2 className="ask-response-title">Guru Response</h2>
         <ScreenState
           loading={askState.loading}
           error={askState.error}

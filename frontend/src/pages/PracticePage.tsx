@@ -12,10 +12,17 @@ import type { SongPhraseReferenceApi } from "../types/api";
 import { initialAsyncState, type AsyncState } from "../types/ui";
 import { convertBlobToWavFile } from "../utils/audioToWav";
 import { emitPracticeRefreshSignal } from "../utils/practiceRefreshSignal";
+import { getPreferredUserId } from "../utils/userIdentity";
 import { PracticeStudioPanel } from "../modules/practice-studio";
 
 type ContentOption = {
   id: string;
+  label: string;
+  phraseCount: number | null;
+};
+
+type PhraseOption = {
+  value: number;
   label: string;
 };
 
@@ -62,7 +69,7 @@ const formatScorePercent = (value: number | null) => {
 };
 
 export default function PracticePage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const [mode, setMode] = useState<"alankar" | "song" | "melody">("alankar");
   const [inputMethod, setInputMethod] = useState<"upload" | "record">("upload");
   const [alankarId, setAlankarId] = useState("alankar_1");
@@ -73,8 +80,8 @@ export default function PracticePage() {
   const [melodyOptions, setMelodyOptions] = useState<ContentOption[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [phraseIndex, setPhraseIndex] = useState(0);
-  const [tempo, setTempo] = useState(60);
+  const [phraseIndexInput, setPhraseIndexInput] = useState("0");
+  const [tempoInput, setTempoInput] = useState("60");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [recordedWavFile, setRecordedWavFile] = useState<File | null>(null);
   const [recordedRawFile, setRecordedRawFile] = useState<File | null>(null);
@@ -104,19 +111,21 @@ export default function PracticePage() {
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
   const safePhraseIndex = useMemo(() => {
-    if (!Number.isFinite(phraseIndex)) {
+    const parsed = Number(phraseIndexInput);
+    if (!Number.isFinite(parsed)) {
       return 0;
     }
 
-    return Math.max(0, Math.floor(phraseIndex));
-  }, [phraseIndex]);
+    return Math.max(0, Math.floor(parsed));
+  }, [phraseIndexInput]);
   const safeTempo = useMemo(() => {
-    if (!Number.isFinite(tempo)) {
+    const parsed = Number(tempoInput);
+    if (!Number.isFinite(parsed)) {
       return 60;
     }
 
-    return Math.max(20, Math.min(220, Math.floor(tempo)));
-  }, [tempo]);
+    return Math.max(20, Math.min(220, Math.floor(parsed)));
+  }, [tempoInput]);
   const selectedContentId = useMemo(() => {
     if (mode === "alankar") {
       return alankarId.trim();
@@ -139,6 +148,45 @@ export default function PracticePage() {
 
     return "Melody";
   }, [mode]);
+
+  const selectedContentOption = useMemo(() => {
+    const options = mode === "alankar" ? alankarOptions : mode === "song" ? songOptions : melodyOptions;
+    return options.find((option) => option.id === selectedContentId) ?? null;
+  }, [alankarOptions, melodyOptions, mode, selectedContentId, songOptions]);
+
+  const selectedPhraseCount = useMemo(() => {
+    const fromOption = selectedContentOption?.phraseCount;
+    if (typeof fromOption === "number" && Number.isFinite(fromOption) && fromOption > 0) {
+      return Math.max(1, Math.floor(fromOption));
+    }
+
+    const fromReference = referenceState.data?.phrase_count;
+    if (typeof fromReference === "number" && Number.isFinite(fromReference) && fromReference > 0) {
+      return Math.max(1, Math.floor(fromReference));
+    }
+
+    return 1;
+  }, [referenceState.data?.phrase_count, selectedContentOption?.phraseCount]);
+
+  const phraseOptions = useMemo<PhraseOption[]>(() => {
+    const options: PhraseOption[] = [];
+
+    for (let index = 0; index < selectedPhraseCount; index += 1) {
+      const isCombinedPhrase = mode === "alankar" && index === selectedPhraseCount - 1;
+      options.push({
+        value: index,
+        label: isCombinedPhrase ? "Combined Phrase" : `Phrase ${index + 1}`,
+      });
+    }
+
+    return options;
+  }, [mode, selectedPhraseCount]);
+
+  useEffect(() => {
+    if (safePhraseIndex >= selectedPhraseCount) {
+      setPhraseIndexInput("0");
+    }
+  }, [safePhraseIndex, selectedPhraseCount]);
 
   useEffect(() => {
     return () => {
@@ -164,7 +212,7 @@ export default function PracticePage() {
     let disposed = false;
 
     const mapOptions = (
-      catalog: Array<{ song_id: string; title?: string }>,
+      catalog: Array<{ song_id: string; title?: string; phrases?: number }>,
     ): ContentOption[] => {
       return catalog
         .map((item) => {
@@ -179,9 +227,15 @@ export default function PracticePage() {
               ? `${title} (${id})`
               : id;
 
+          const phraseCount =
+            typeof item.phrases === "number" && Number.isFinite(item.phrases) && item.phrases > 0
+              ? Math.max(1, Math.floor(item.phrases))
+              : null;
+
           return {
             id,
             label,
+            phraseCount,
           };
         })
         .filter((item): item is ContentOption => item !== null)
@@ -957,6 +1011,10 @@ export default function PracticePage() {
     }
   };
 
+  const onTempoBlur = () => {
+    setTempoInput(String(safeTempo));
+  };
+
   const curriculumSnapshot = curriculumState.data?.data ?? null;
   const curriculumSnapshotEmptyMessage =
     curriculumState.data?.empty.isEmpty
@@ -970,10 +1028,10 @@ export default function PracticePage() {
 
       <section className="card practice-control-card">
         <div className="practice-controls-grid">
-          <label className="practice-control-item">
-            User ID
-            <input value={userId} onChange={(event) => setUserId(event.target.value)} />
-          </label>
+          <div className="practice-control-item user-id-inline">
+            <span className="user-id-inline-label">User ID:</span>{" "}
+            <span className="user-id-inline-value">{userId}</span>
+          </div>
 
           <label className="practice-control-item">
             Mode
@@ -1041,13 +1099,22 @@ export default function PracticePage() {
           )}
 
           <label className="practice-control-item">
-            Phrase Index
-            <input
-              type="number"
-              min={0}
-              value={phraseIndex}
-              onChange={(event) => setPhraseIndex(Number(event.target.value || 0))}
-            />
+            Phrase
+            <select
+              value={String(safePhraseIndex)}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                const nextValue = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+                setPhraseIndexInput(String(nextValue));
+              }}
+              disabled={catalogLoading || phraseOptions.length === 0}
+            >
+              {phraseOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="practice-control-item">
@@ -1056,8 +1123,9 @@ export default function PracticePage() {
               type="number"
               min={20}
               max={220}
-              value={tempo}
-              onChange={(event) => setTempo(Number(event.target.value || 60))}
+              value={tempoInput}
+              onChange={(event) => setTempoInput(event.target.value)}
+              onBlur={onTempoBlur}
             />
           </label>
 

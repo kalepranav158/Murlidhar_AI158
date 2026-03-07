@@ -1,4 +1,4 @@
-from audio.note_segmenter import NoteSegmenter
+﻿from backend.utils.audio.note_segmenter import NoteSegmenter
 
 seg = NoteSegmenter()
 
@@ -24,3 +24,4 @@ for note, cents, t in fake_stream:
 print("Detected notes:\n")
 for n in seg.get_notes():
     print(n)
+

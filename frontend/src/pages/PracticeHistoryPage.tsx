@@ -9,26 +9,35 @@ import {
   subscribePracticeRefreshSignal,
   type PracticeRefreshSignal,
 } from "../utils/practiceRefreshSignal";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function PracticeHistoryPage() {
-  const [userId, setUserId] = useState("demo_user");
-  const [limit, setLimit] = useState(20);
+  const [userId] = useState(getPreferredUserId());
+  const [limitInput, setLimitInput] = useState("20");
   const { historyState, loadPracticeHistory } = usePracticeHistory();
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
+  const safeLimit = useMemo(() => {
+    const parsed = Number(limitInput);
+    if (!Number.isFinite(parsed)) {
+      return 20;
+    }
 
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
+    return Math.max(1, Math.min(100, Math.floor(parsed)));
+  }, [limitInput]);
 
   const onLimitChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setLimit(Number(event.target.value || 20));
+    setLimitInput(event.target.value);
+  };
+
+  const onLimitBlur = () => {
+    setLimitInput(String(safeLimit));
   };
 
   const onLoadHistory = async () => {
     try {
-      await loadPracticeHistory(safeUserId, limit);
+      await loadPracticeHistory(safeUserId, safeLimit);
     } catch {
       return;
     }
@@ -45,8 +54,8 @@ export default function PracticeHistoryPage() {
     }
 
     hasLoadedOnVisitRef.current = true;
-    void loadPracticeHistory(safeUserId, limit).catch(() => undefined);
-  }, [limit, loadPracticeHistory, safeUserId]);
+    void loadPracticeHistory(safeUserId, safeLimit).catch(() => undefined);
+  }, [loadPracticeHistory, safeLimit, safeUserId]);
 
   useEffect(() => {
     if (!safeUserId) {
@@ -59,7 +68,7 @@ export default function PracticeHistoryPage() {
       }
 
       try {
-        await loadPracticeHistory(safeUserId, limit);
+        await loadPracticeHistory(safeUserId, safeLimit);
         markPracticeRefreshHandled("practice-history", signal);
       } catch {
         return;
@@ -73,20 +82,27 @@ export default function PracticeHistoryPage() {
     });
 
     return unsubscribe;
-  }, [limit, loadPracticeHistory, safeUserId]);
+  }, [loadPracticeHistory, safeLimit, safeUserId]);
 
   return (
     <div className="container">
       <h1>Practice History</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <label>
           Session Limit
-          <input type="number" min={1} max={100} value={limit} onChange={onLimitChange} />
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={limitInput}
+            onChange={onLimitChange}
+            onBlur={onLimitBlur}
+          />
         </label>
         <div className="row">
           <button onClick={onLoadHistory}>Refresh Practice History</button>

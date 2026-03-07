@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import ScreenState from "../components/ScreenState";
 import { SkillRadarPanel, useSkillRadar } from "../modules/skill-radar";
 import {
@@ -9,17 +8,14 @@ import {
   subscribePracticeRefreshSignal,
   type PracticeRefreshSignal,
 } from "../utils/practiceRefreshSignal";
+import { getPreferredUserId } from "../utils/userIdentity";
 
 export default function SkillRadarPage() {
-  const [userId, setUserId] = useState("demo_user");
+  const [userId] = useState(getPreferredUserId());
   const { radarState, loadSkillRadar } = useSkillRadar();
   const hasLoadedOnVisitRef = useRef(false);
 
   const safeUserId = useMemo(() => userId.trim(), [userId]);
-
-  const onUserIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUserId(event.target.value);
-  };
 
   const onLoadRadar = async () => {
     try {
@@ -75,10 +71,10 @@ export default function SkillRadarPage() {
       <h1>Skill Radar</h1>
 
       <section className="card">
-        <label>
-          User ID
-          <input value={userId} onChange={onUserIdChange} />
-        </label>
+        <p className="user-id-inline">
+          <span className="user-id-inline-label">User ID:</span>{" "}
+          <span className="user-id-inline-value">{userId}</span>
+        </p>
         <div className="row">
           <button onClick={onLoadRadar}>Refresh Skill Radar</button>
         </div>

@@ -1,4 +1,4 @@
-from app.services.llm.feedback_llm import _normalize_llm_feedback
+﻿from backend.services.llm.feedback_llm import _normalize_llm_feedback
 
 
 def test_llm_feedback_normalization():
@@ -12,3 +12,4 @@ def test_llm_feedback_normalization():
     assert normalized["rhythm_stability_score"] == 0.25
     # other keys should remain untouched
     assert normalized["other"] == "irrelevant"
+

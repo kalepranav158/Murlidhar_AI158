@@ -1,11 +1,11 @@
-import json
+﻿import json
 from pathlib import Path
 
-from music.song_loader import infer_content_type
+from backend.utils.music.song_loader import infer_content_type
 
 
 def test_alankar_catalog_unlock_chain_integrity():
-    songs_dir = Path("songs")
+    songs_dir = Path("data/songs/catalog")
     expected_ids = [f"alankar_{index}" for index in range(1, 11)]
 
     loaded = {}
@@ -30,7 +30,7 @@ def test_alankar_catalog_unlock_chain_integrity():
 
 
 def test_melody_catalog_unlock_chain_integrity():
-    songs_dir = Path("songs")
+    songs_dir = Path("data/songs/catalog")
     expected_ids = [f"melody_{index}" for index in range(1, 4)]
 
     loaded = {}
@@ -56,7 +56,7 @@ def test_melody_catalog_unlock_chain_integrity():
 
 
 def test_melody_catalog_content_type_inference():
-    songs_dir = Path("songs")
+    songs_dir = Path("data/songs/catalog")
     melody_files = sorted(songs_dir.glob("melody_*.json"))
     assert melody_files, "Expected at least one melody JSON file"
 
@@ -68,3 +68,4 @@ def test_melody_catalog_content_type_inference():
         assert infer_content_type(payload, content_id) == "melody", (
             f"inferred content type mismatch in {file_path.name}"
         )
+

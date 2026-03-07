@@ -37,14 +37,14 @@ def main() -> int:
     checks.append(
         run_command(
             "Syntax check",
-            [python, "-m", "py_compile", "app/main.py", "database/db.py", "test_backend_freeze.py"],
+            [python, "-m", "py_compile", "backend/main.py", "backend/models/db.py", "tests/freeze/test_backend_freeze.py"],
         )
     )
 
     checks.append(
         run_command(
             "Backend freeze suite",
-            [python, "-m", "pytest", "test_backend_freeze.py", "-q"],
+            [python, "-m", "pytest", "tests/freeze/test_backend_freeze.py", "-q"],
         )
     )
 
@@ -52,7 +52,7 @@ def main() -> int:
         checks.append(
             run_command(
                 "Canonical regression suite",
-                [python, "-m", "pytest", "test_edge_cases.py", "test_curriculum.py", "-q"],
+                [python, "-m", "pytest", "tests/freeze/test_edge_cases.py", "tests/freeze/test_curriculum.py", "-q"],
             )
         )
 
