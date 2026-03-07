@@ -1,6 +1,6 @@
 # Frontend Architecture V2 (Implemented)
 
-Status: Implemented and synchronized (created 2026-03-04)
+Status: Implemented and synchronized; post-V2 V3-visualization track aligned (updated 2026-03-05)
 
 ## 1) Goal
 Transform frontend from a scorecard UI into an interactive AI music tutor, while preserving all v1 contract guardrails.
@@ -20,7 +20,7 @@ V2 outcome:
 - No production dependency on `/debug/*`.
 
 ## 3) Current Baseline (Post-V2)
-- Pages in `frontend/src/pages`: Dashboard, Practice Studio, Curriculum, Progress, Practice History, Skill Radar, Diagnostics.
+- Pages in `frontend/src/pages`: Dashboard, Practice Studio, Curriculum, Progress, Practice History, Skill Radar, Ask Guru, Diagnostics (internal).
 - V2 modules are implemented under `frontend/src/modules`:
   - `practice-studio`
   - `skill-radar`
@@ -34,7 +34,7 @@ V2 outcome:
   - `technique_details`
   - `adaptive_plan`
   - `song_adaptive_plan`
-- Analytics supports radar/trend and adaptive recommendation endpoints.
+- Analytics supports radar/trend, adaptive recommendation, and learning-intelligence endpoints.
 - Sessions API supports timeline source data (`timestamp`, scores, indices).
 
 ## 4) V2 Frontend Module Topology
@@ -67,6 +67,7 @@ Target top-level views:
 - Progress
 - Practice History
 - Skill Radar
+- Ask Guru
 - Diagnostics (optional/internal)
 
 Migration note:
@@ -214,3 +215,22 @@ This architecture is synchronized with:
 - Expose recommendation/skill-profile/difficulty inference outputs through backend APIs.
 - Render model outputs in frontend learning surfaces with deterministic fallback states.
 - Preserve no-frontend-progression-logic constraint while enriching guidance UX.
+
+## 13) V3 Visualization Execution Track (Approved 2026-03-05)
+
+### 13.1 Chart Engine Decision
+- Primary chart engine: Apache ECharts.
+- React integration: `echarts-for-react`.
+- Rationale: strongest fit for radar + heatmap + diagnostics visualization while preserving incremental delivery.
+
+### 13.2 Hybrid Rendering Strategy
+- Keep current custom SVG domain overlays in Practice Studio (`PitchTimeline`, markers, reference/user curve).
+- Use ECharts for analytics-first surfaces (Skill Radar migration first, then Progress and internal Diagnostics charts).
+- Keep Diagnostics internal and non-blocking for public learner workflows.
+
+### 13.3 Phase Execution (Immediate)
+- Phase 1 (foundation): install/chart wrapper infrastructure under `frontend/src/modules/charts`.
+- Phase 2 (migration): move Skill Radar renderer from custom SVG to ECharts, preserving existing normalized data contract and source labels.
+
+### 13.4 Source of Truth
+- Execution blueprint is maintained in root planning document: `Next plan-Analytics_skill_tracking`.

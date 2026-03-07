@@ -1,36 +1,59 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import DashboardPage from "./pages/DashboardPage";
 import PracticePage from "./pages/PracticePage";
 import CurriculumPage from "./pages/CurriculumPage";
-import ProgressPage from "./pages/ProgressPage";
 import PracticeHistoryPage from "./pages/PracticeHistoryPage";
-import SkillRadarPage from "./pages/SkillRadarPage";
 import AskPage from "./pages/AskPage";
-import DiagnosticsPage from "./pages/DiagnosticsPage";
+
+const ProgressPage = lazy(() => import("./pages/ProgressPage"));
+const SkillRadarPage = lazy(() => import("./pages/SkillRadarPage"));
+const DiagnosticsPage = lazy(() => import("./pages/DiagnosticsPage"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const DocumentationPage = lazy(() => import("./pages/DocumentationPage"));
 
 type ViewKey =
   | "dashboard"
   | "practice"
   | "curriculum"
+  | "analytics"
   | "progress"
   | "practice-history"
   | "skill-radar"
   | "ask"
-  | "diagnostics";
+  | "diagnostics"
+  | "documentation";
 
 const navItems: Array<{ key: ViewKey; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
   { key: "practice", label: "Practice Studio" },
   { key: "curriculum", label: "Curriculum" },
+  { key: "analytics", label: "Analytics" },
   { key: "progress", label: "Progress" },
   { key: "practice-history", label: "Practice History" },
   { key: "skill-radar", label: "Skill Radar" },
   { key: "ask", label: "Ask Guru" },
-  { key: "diagnostics", label: "Diagnostics" },
+  { key: "diagnostics", label: "Debug" },
+  { key: "documentation", label: "Documentation" },
 ];
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>("dashboard");
+
+  const renderLazyPage = (element: JSX.Element) => {
+    return (
+      <Suspense
+        fallback={
+          <div className="container">
+            <section className="card">
+              <p className="muted">Loading page...</p>
+            </section>
+          </div>
+        }
+      >
+        {element}
+      </Suspense>
+    );
+  };
 
   return (
     <>
@@ -51,11 +74,13 @@ export default function App() {
       {activeView === "dashboard" && <DashboardPage />}
       {activeView === "practice" && <PracticePage />}
       {activeView === "curriculum" && <CurriculumPage />}
-      {activeView === "progress" && <ProgressPage />}
+      {activeView === "analytics" && renderLazyPage(<AnalyticsPage />)}
+      {activeView === "progress" && renderLazyPage(<ProgressPage />)}
       {activeView === "practice-history" && <PracticeHistoryPage />}
-      {activeView === "skill-radar" && <SkillRadarPage />}
+      {activeView === "skill-radar" && renderLazyPage(<SkillRadarPage />)}
       {activeView === "ask" && <AskPage />}
-      {activeView === "diagnostics" && <DiagnosticsPage />}
+      {activeView === "diagnostics" && renderLazyPage(<DiagnosticsPage />)}
+      {activeView === "documentation" && renderLazyPage(<DocumentationPage />)}
     </>
   );
 }

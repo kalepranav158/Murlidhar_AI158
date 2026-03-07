@@ -8,6 +8,7 @@ import database.db as db
 from app.routes import analytics as analytics_route
 from app.routes import debug as debug_route
 from app.routes import sessions as sessions_route
+from app.routes import songs as songs_route
 from app.routes import student as student_route
 
 
@@ -106,3 +107,25 @@ def test_debug_alankar_no_data_envelope(monkeypatch, tmp_path: Path):
     assert response.status_code == 200
     payload = response.json()
     _assert_no_data_envelope(payload, "No skill_progress record found")
+
+
+def test_songs_phrase_reference_success_shape():
+    client = _build_client(songs_route.router)
+    response = client.get("/songs/song_1/phrase/0")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload.get("song_id") == "song_1"
+    assert payload.get("phrase_index") == 0
+    assert isinstance(payload.get("phrase_count"), int)
+    assert isinstance(payload.get("notes"), list)
+    assert payload["notes"], "expected phrase notes in response"
+
+
+def test_songs_phrase_reference_invalid_phrase_index():
+    client = _build_client(songs_route.router)
+    response = client.get("/songs/song_1/phrase/9999")
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload.get("detail") == "Invalid phrase index"

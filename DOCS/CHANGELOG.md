@@ -1,6 +1,47 @@
 # CHANGELOG
 
 ## [Unreleased]
+- Updated Practice Studio form control typography so selection textboxes/dropdowns (and dropdown option text) use the Sanskrit-style font treatment
+- Switched Documentation typography to a Sanskrit-style serif treatment (`Tiro Devanagari Sanskrit`) for section text and illustration headline labels
+- Updated Documentation page typography: refreshed section text/captions styling and changed embedded SVG headline fonts for the flute and Govardhan illustrations
+- Added relevant illustrations to the Documentation page sections (`Flute History` and `Lifting Govardhan Hill`) using local responsive SVG assets with captions
+- Added final `Documentation` page tab with two cultural sections: a short flute history intro and a Shri Krishna stories section seeded with one short story (`Lifting Govardhan Hill`)
+- Reworked Practice Studio selection controls into a responsive column/grid layout (with compact spacing) to reduce vertical form height and adapt better across screen sizes
+- Expanded Curriculum Snapshot layout to use full available row width in Practice Studio and tuned responsive grid breakpoints to favor width over vertical stacking
+- Replaced raw Curriculum Snapshot JSON in Practice Studio with a structured UI card showing level, score, recommendation, next goal, and unlocked/mastered/locked content pills
+- Synced live-record 4-beat count-in with alankar metronome flow so recording begins exactly on a fresh `Sam` (cycle reset), with count-in running as a dedicated pre-roll phase
+- Added `Clear Recording` action in Practice Studio live-record mode to discard recorded audio and preview before submitting
+- Added a 4-beat pre-recording count-in in Practice Studio and upgraded metronome accents with tala cues (`Sam` strong, `Khali` lighter) plus live marker/status UI
+- Tightened Practice Studio metronome sync with a clock-based timing loop aligned to alankar reference steps, and added a mini alankar metronome strip showing live `Now`/`Next` note cues
+- Elevated the `Vrindavan Evening` theme with premium visual polish: luxe gradient title treatment, decorative atmospheric overlay, shimmering card surfaces, richer nav accents, and improved hover/focus motion for a more attractive frontend
+- Activated theme variant `Vrindavan Evening` (option 2): deeper Krishna indigo shell, peacock teal accents, and feather-gold heading glow across the shared frontend palette
+- Applied a Krishna-inspired frontend theme using peacock-feather colors (indigo, teal, jade, gold) across navigation, cards, controls, and interactive panels
+- Added atmospheric multi-layer gradient/pattern background, upgraded typography, and consistent visual harmonization for Practice, Ask, Analytics, Skill Radar, and History surfaces
+- Upgraded Practice Studio reference-note UX with a tempo-synced step guide: removed raw timestamp display and now shows beat-based step timing that updates with selected BPM
+- Added an interactive metronome panel in Practice Studio for alankar/phrase rehearsal, including pulse visualization, cycle progress, mute toggle, and active-step highlighting
+- Implemented Ask Guru structured response UI (mode badge, confidence, and readable field cards) instead of raw JSON-only rendering
+- Added pre-practice selected phrase reference-note panel in Practice Studio for both upload and live recording workflows
+- Added songs phrase-reference API endpoint `GET /songs/{song_id}/phrase/{phrase_index}` to power on-screen reference notes before submission
+- Refactored analytics chart option builders into `frontend/src/modules/analytics/options/buildAnalyticsOptions.ts` and removed diagnostics-prefixed option naming from `Analytics` page wiring
+- Enhanced Practice Studio heatmap with `Absolute Cents` / `Signed Cents` scale toggle for deviation analysis
+- Added heatmap-to-timeline interaction: clicking a heatmap cell now highlights the corresponding time window on the pitch timeline
+- Renamed top navigation label from `Diagnostics` to `Debug` while preserving the existing internal diagnostics route key
+- Started next Practice Studio analytics slice: added a pitch-deviation heatmap panel (time-bin vs note with absolute cents intensity)
+- Simplified `Diagnostics` into a debug-only surface by removing duplicated analytics chart blocks now hosted in the new `Analytics` page
+- Added new top-level `Analytics` page and navigation tab; moved trend/error/instability chart experience into a dedicated analytics surface with first-visit auto-load
+- Added explicit instability threshold visualization in Diagnostics: Stable/Watch/Critical background bands with dashed threshold ceiling lines
+- Extended diagnostics charting: charts now auto-load on first page visit and include a new Instability Score panel (weighted from inverse accuracy, pitch error, and timing error)
+- Implemented next internal diagnostics slice: added live ECharts panels for Accuracy Trend, Pitch Error Trend, and Timing Error Trend using `/analytics/trend` + `/sessions` data
+- Fixed Skill Radar chart footprint: expanded ECharts container sizing and radar option layout so Skill Balance no longer renders as a narrow, clipped chart
+- Added manual Rollup chunking in Vite config for `echarts`, `echarts-for-react`, and React vendor modules to improve deferred bundle composition
+- Pruned unused ECharts registrations (`BarChart`, `HeatmapChart`, `VisualMap`, `Dataset`, `Title`) to reduce current chart payload until those chart types are introduced
+- Switched Diagnostics smoke chart renderer to canvas and removed `SVGRenderer` registration for additional chart bundle reduction
+- Started V3 Phase 3 progress analytics implementation: Progress page now renders ECharts-based Skill Improvement and Accuracy vs Composite trend charts sourced from session/history data
+- Added route-level lazy loading for chart-heavy pages (`Progress`, `Skill Radar`, `Diagnostics`) to reduce initial app bundle size and defer ECharts chunk loading
+- Completed V3 Phase 2 frontend visualization migration: Skill Radar renderer moved from custom SVG to ECharts with preserved normalized data mapping and source metadata cards
+- Started V3 Phase 1 frontend visualization implementation: installed `echarts` + `echarts-for-react`, added shared chart infrastructure under `frontend/src/modules/charts`, added reusable chart container styles, and validated with successful frontend build
+- Synced DOCS to V3 visualization execution blueprint: finalized Apache ECharts + `echarts-for-react` as chart stack with Phase 1 (foundation) and Phase 2 (Skill Radar migration) planning
+- Synced frontend architecture/plan docs to include `Ask Guru` as a dedicated learner surface and keep Diagnostics internal
 - Completed Slice 5 frontend learning-intelligence wiring: Dashboard/Progress now render ML learning difficulty and recommendation guidance with model-status visibility
 - Completed Slice 4 ML-first learning engine: added `app/services/learning_engine.py`, offline artifact bootstrap (`app/config/learning_model_artifact.json`), startup model loading, and offline trainer script (`scripts/train_learning_model.py`)
 - Added learning analytics endpoints: `/analytics/learning/skill-profile`, `/analytics/learning/difficulty`, `/analytics/learning/recommendation`, `/analytics/learning/model-status`, `/analytics/learning/model-refresh`

@@ -1,6 +1,6 @@
 # Frontend V2 Implementation Plan (Synced)
 
-Status: V2 implemented; post-V2 slices 1-5 completed (2026-03-05)
+Status: V2 implemented; post-V2 slices 1-5 completed; V3 visualization phases planned (2026-03-05)
 
 This plan is sequenced to match the approved V2 rollout order and current backend contracts.
 
@@ -209,3 +209,44 @@ Planned outputs:
 - Recommendation strategy: ML-first.
 - Training data source: existing session/history data only.
 - Model serving mode: offline-trained model loaded at backend startup.
+
+## 9) V3 Visualization Execution Sync (Approved 2026-03-05)
+
+### 9.1 Stack Decision
+- Chart engine: Apache ECharts.
+- React wrapper: `echarts-for-react`.
+- Rendering policy: hybrid (retain custom SVG for Practice Studio domain overlays; use ECharts for analytics-heavy surfaces).
+
+### 9.2 Phase 1 — Foundation (ECharts Infrastructure)
+Objective:
+- Establish shared chart infrastructure without UI regression.
+
+Planned outputs:
+- Install dependencies: `echarts`, `echarts-for-react`.
+- Add shared chart primitives under `frontend/src/modules/charts/`:
+  - `echarts.ts` (module registration)
+  - `EChartBase.tsx` (shared wrapper)
+  - `types.ts`
+  - `index.ts`
+- Add reusable chart container styles in `frontend/src/styles.css`.
+
+Exit criteria:
+- Frontend build passes.
+- Existing pages continue to render unchanged.
+
+### 9.3 Phase 2 — Skill Radar Migration
+Objective:
+- Migrate Skill Radar renderer from custom SVG to ECharts radar while keeping the same normalized data semantics.
+
+Planned outputs:
+- Add `frontend/src/modules/skill-radar/components/SkillRadarEChart.tsx`.
+- Add `frontend/src/modules/skill-radar/options/buildSkillRadarOption.ts`.
+- Update `frontend/src/modules/skill-radar/SkillRadarPanel.tsx` to use new renderer.
+- Keep existing metric/source cards and fallback behavior.
+
+Exit criteria:
+- Skill Radar renders via ECharts using existing normalized payload.
+- Build passes with no regression in surrounding pages.
+
+### 9.4 Tracking Reference
+- Detailed execution checklist and scope boundaries are maintained in: `Next plan-Analytics_skill_tracking`.

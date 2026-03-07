@@ -1,5 +1,5 @@
 import type { SkillRadarNormalized } from "../../types/normalized";
-import SkillRadarChart from "./components/SkillRadarChart";
+import SkillRadarEChart from "./components/SkillRadarEChart";
 
 type SkillRadarPanelProps = {
   radar: SkillRadarNormalized;
@@ -10,7 +10,7 @@ const asPercent = (value: number) => `${Math.round(value * 100)}%`;
 export default function SkillRadarPanel({ radar }: SkillRadarPanelProps) {
   return (
     <section className="skill-radar-panel">
-      <SkillRadarChart radar={radar} />
+      <SkillRadarEChart radar={radar} />
 
       <div className="skill-radar-metrics">
         <article className="skill-radar-metric">

@@ -5,10 +5,12 @@ import type {
   PracticeStudioModel,
   ProjectedPoint,
   ProjectedTechniqueEvent,
+  TimeWindowSelection,
 } from "../types";
 
 type PitchTimelineProps = {
   model: PracticeStudioModel;
+  highlightedWindow?: TimeWindowSelection | null;
 };
 
 const SVG_WIDTH = 920;
@@ -20,7 +22,7 @@ const PADDING = {
   bottom: 36,
 };
 
-export default function PitchTimeline({ model }: PitchTimelineProps) {
+export default function PitchTimeline({ model, highlightedWindow = null }: PitchTimelineProps) {
   const innerWidth = SVG_WIDTH - PADDING.left - PADDING.right;
   const innerHeight = SVG_HEIGHT - PADDING.top - PADDING.bottom;
 
@@ -83,6 +85,22 @@ export default function PitchTimeline({ model }: PitchTimelineProps) {
     });
   }
 
+  const windowStart = highlightedWindow
+    ? Math.max(model.timeMin, Math.min(highlightedWindow.startTime, highlightedWindow.endTime))
+    : null;
+  const windowEnd = highlightedWindow
+    ? Math.min(model.timeMax, Math.max(highlightedWindow.startTime, highlightedWindow.endTime))
+    : null;
+  const hasWindow =
+    typeof windowStart === "number" &&
+    typeof windowEnd === "number" &&
+    Number.isFinite(windowStart) &&
+    Number.isFinite(windowEnd) &&
+    windowEnd > windowStart;
+  const xStart = hasWindow ? toX(windowStart) : 0;
+  const xEnd = hasWindow ? toX(windowEnd) : 0;
+  const windowWidth = Math.max(0, xEnd - xStart);
+
   return (
     <div className="pitch-timeline-wrap">
       <svg
@@ -98,6 +116,20 @@ export default function PitchTimeline({ model }: PitchTimelineProps) {
           height={innerHeight}
           className="timeline-bg"
         />
+
+        {hasWindow && (
+          <g>
+            <rect
+              x={xStart}
+              y={PADDING.top}
+              width={windowWidth}
+              height={innerHeight}
+              className="timeline-selection-window"
+            />
+            <line x1={xStart} y1={PADDING.top} x2={xStart} y2={PADDING.top + innerHeight} className="timeline-selection-edge" />
+            <line x1={xEnd} y1={PADDING.top} x2={xEnd} y2={PADDING.top + innerHeight} className="timeline-selection-edge" />
+          </g>
+        )}
 
         {yTicks.map((tick) => (
           <g key={`y-${tick.y}`}>
@@ -137,6 +169,7 @@ export default function PitchTimeline({ model }: PitchTimelineProps) {
       <div className="timeline-legend">
         <span><i className="legend-dot legend-reference" />Reference melody</span>
         <span><i className="legend-dot legend-user" />User pitch curve</span>
+        <span><i className="legend-dot legend-selection" />Selected heatmap window</span>
         <span><i className="legend-dot legend-meend" />Meend markers</span>
         <span><i className="legend-dot legend-gamak" />Gamak markers</span>
       </div>

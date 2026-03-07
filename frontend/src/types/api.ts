@@ -183,6 +183,21 @@ export type SongListItemApi = {
   content_type?: "alankar" | "song" | "melody" | string;
 };
 
+export type SongPhraseReferenceApi = {
+  song_id?: string;
+  title?: string;
+  content_type?: "alankar" | "song" | "melody" | string;
+  phrase_index?: number;
+  phrase_id?: number;
+  phrase_section?: string | null;
+  phrase_count?: number;
+  reference_tempo?: number | null;
+  notes?: Array<{
+    note?: string;
+    time?: number;
+  }>;
+};
+
 export type PracticeApi = {
   content_type?: "alankar" | "song" | "melody" | string;
   song?: string;

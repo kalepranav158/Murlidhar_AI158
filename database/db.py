@@ -605,6 +605,135 @@ def get_logical_date(user_id: str, utc_timestamp: datetime) -> str:
     return local_dt.date().isoformat()
 
 
+def _default_practice_streak_payload(user_id: str) -> dict:
+    return {
+        "user_id": user_id,
+        "current_streak": 0,
+        "longest_streak": 0,
+        "last_practice_logical_date": None,
+        "last_practice_date": None,
+        "total_practice_days": 0,
+    }
+
+
+def _extract_iso_date(raw_timestamp: str | None) -> str | None:
+    if not raw_timestamp:
+        return None
+
+    timestamp = str(raw_timestamp).strip()
+    if not timestamp:
+        return None
+
+    normalized = timestamp.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).date().isoformat()
+    except ValueError:
+        pass
+
+    date_prefix = timestamp[:10]
+    try:
+        return datetime.fromisoformat(date_prefix).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _compute_streak_from_sorted_dates(sorted_dates: list[str]) -> tuple[int, int]:
+    if not sorted_dates:
+        return 0, 0
+
+    current = 1
+    longest = 1
+    previous = datetime.fromisoformat(sorted_dates[0]).date()
+
+    for date_text in sorted_dates[1:]:
+        current_date = datetime.fromisoformat(date_text).date()
+        delta_days = (current_date - previous).days
+
+        if delta_days == 1:
+            current += 1
+        elif delta_days > 1:
+            current = 1
+
+        longest = max(longest, current)
+        previous = current_date
+
+    return current, longest
+
+
+def _rebuild_practice_streak_from_sessions(user_id: str) -> dict | None:
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT timestamp FROM sessions WHERE user_id = ? ORDER BY timestamp ASC",
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+
+    if not rows:
+        conn.close()
+        return None
+
+    logical_dates = sorted(
+        {
+            logical_date
+            for row in rows
+            if (logical_date := _extract_iso_date(row["timestamp"]))
+        }
+    )
+
+    if not logical_dates:
+        conn.close()
+        return None
+
+    current_streak, longest_streak = _compute_streak_from_sorted_dates(logical_dates)
+    total_practice_days = len(logical_dates)
+    last_practice_logical_date = logical_dates[-1]
+    updated_at = datetime.now(timezone.utc).isoformat()
+
+    cursor.executemany(
+        "INSERT OR IGNORE INTO practice_days (user_id, logical_date) VALUES (?, ?)",
+        [(user_id, logical_date) for logical_date in logical_dates],
+    )
+
+    cursor.execute(
+        """
+        INSERT INTO practice_streak (
+            user_id, current_streak, longest_streak,
+            last_practice_logical_date, total_practice_days, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            current_streak=excluded.current_streak,
+            longest_streak=excluded.longest_streak,
+            last_practice_logical_date=excluded.last_practice_logical_date,
+            total_practice_days=excluded.total_practice_days,
+            updated_at=excluded.updated_at
+        """,
+        (
+            user_id,
+            current_streak,
+            longest_streak,
+            last_practice_logical_date,
+            total_practice_days,
+            updated_at,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "user_id": user_id,
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "last_practice_logical_date": last_practice_logical_date,
+        "last_practice_date": last_practice_logical_date,
+        "total_practice_days": total_practice_days,
+    }
+
+
 def get_practice_streak(user_id: str) -> dict:
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -615,18 +744,28 @@ def get_practice_streak(user_id: str) -> dict:
     )
     row = cursor.fetchone()
     conn.close()
+
     if not row:
-        return {
-            "user_id": user_id,
-            "current_streak": 0,
-            "longest_streak": 0,
-            "last_practice_logical_date": None,
-            "last_practice_date": None,
-            "total_practice_days": 0,
-        }
+        rebuilt = _rebuild_practice_streak_from_sessions(user_id)
+        if rebuilt:
+            return rebuilt
+        return _default_practice_streak_payload(user_id)
+
     payload = dict(row)
-    payload["last_practice_date"] = payload.get("last_practice_logical_date")
+    payload["current_streak"] = int(payload.get("current_streak") or 0)
+    payload["longest_streak"] = int(payload.get("longest_streak") or 0)
     payload["total_practice_days"] = int(payload.get("total_practice_days") or 0)
+
+    if (
+        payload["current_streak"] == 0
+        and payload["longest_streak"] == 0
+        and payload["total_practice_days"] == 0
+    ):
+        rebuilt = _rebuild_practice_streak_from_sessions(user_id)
+        if rebuilt:
+            return rebuilt
+
+    payload["last_practice_date"] = payload.get("last_practice_logical_date")
     return payload
 
 
@@ -869,7 +1008,13 @@ def save_session(user_id, reference, played, result, skill_id: str | None = None
         conn.commit()
         conn.close()
 
-        return {"status": "saved"}
+        streak_payload = None
+        try:
+            streak_payload = update_practice_streak(user_id)
+        except Exception:
+            streak_payload = None
+
+        return {"status": "saved", "streak": streak_payload}
 
 def get_sessions(user_id: str , limit: int = 100):
     conn = sqlite3.connect(DB_NAME)

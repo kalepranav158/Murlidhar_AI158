@@ -13,6 +13,7 @@ from app.services.analytics_engine import compute_analytics
 from app.services.curriculum_service import evaluate_curriculum_progress
 from database.db import (
     compute_session_hash,
+    get_practice_streak,
     init_db,
     prune_analytics_window,
     save_analytics_snapshot,
@@ -197,6 +198,98 @@ def test_duplicate_submission_stress_idempotent():
     assert first_progress["duplicate"] is False
     assert second_progress["duplicate"] is True
     assert second_progress["successful_sessions"] == first_progress["successful_sessions"]
+
+
+def test_save_session_updates_streak_state():
+    user_id = "freeze_user_streak_auto"
+    skill_id = "freeze_skill_streak_auto"
+
+    reference = ["Sa", "Re"]
+    played = [{"note": "Sa", "cents": 0.0, "time": 0.0}]
+    payload = {
+        "note_accuracy": 84,
+        "avg_pitch_error_cents": 6,
+        "avg_timing_error_sec": 0.2,
+        "mistakes": [],
+        "composite_score": 0.81,
+        "pitch_index": 0.8,
+        "rhythm_index": 0.8,
+        "consistency_index": 1.0,
+        "technique_score": 0.7,
+    }
+
+    saved = save_session(user_id, reference, played, payload, skill_id=skill_id)
+
+    assert saved["status"] == "saved"
+    streak = get_practice_streak(user_id)
+    assert streak["current_streak"] == 1
+    assert streak["longest_streak"] == 1
+    assert streak["total_practice_days"] == 1
+
+
+def test_get_practice_streak_backfills_from_existing_sessions():
+    user_id = "freeze_user_streak_backfill"
+
+    conn = sqlite3.connect(db.DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO sessions (
+            user_id, timestamp, reference, played_notes,
+            note_accuracy, avg_pitch_error, avg_timing_error,
+            mistakes, composite_score, pitch_index,
+            rhythm_index, consistency_index, technique_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            "2026-03-01T10:00:00",
+            "[]",
+            "[]",
+            80.0,
+            5.0,
+            0.2,
+            "[]",
+            0.8,
+            0.8,
+            0.8,
+            1.0,
+            0.6,
+        ),
+    )
+    cursor.execute(
+        """
+        INSERT INTO sessions (
+            user_id, timestamp, reference, played_notes,
+            note_accuracy, avg_pitch_error, avg_timing_error,
+            mistakes, composite_score, pitch_index,
+            rhythm_index, consistency_index, technique_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            "2026-03-02T11:00:00",
+            "[]",
+            "[]",
+            85.0,
+            4.0,
+            0.15,
+            "[]",
+            0.85,
+            0.85,
+            0.85,
+            1.0,
+            0.7,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    streak = get_practice_streak(user_id)
+
+    assert streak["current_streak"] == 2
+    assert streak["longest_streak"] == 2
+    assert streak["total_practice_days"] == 2
 
 
 def test_unlock_integrity_audit_all_skills():

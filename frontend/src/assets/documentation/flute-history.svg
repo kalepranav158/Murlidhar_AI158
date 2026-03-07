@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Bansuri flute illustration</title>
+  <desc id="desc">A stylized bamboo flute with warm sunset gradients and musical motifs.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#172a64"/>
+      <stop offset="55%" stop-color="#0b6e79"/>
+      <stop offset="100%" stop-color="#d9ab45"/>
+    </linearGradient>
+    <linearGradient id="bamboo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d7a64a"/>
+      <stop offset="45%" stop-color="#f0cf82"/>
+      <stop offset="100%" stop-color="#c18c33"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#bg)"/>
+
+  <circle cx="128" cy="124" r="82" fill="#ffd98a" opacity="0.36"/>
+  <circle cx="810" cy="112" r="64" fill="#fff0bf" opacity="0.22"/>
+
+  <g transform="translate(92 250) rotate(-6 386 36)">
+    <rect x="0" y="0" width="772" height="74" rx="36" fill="url(#bamboo)" filter="url(#softGlow)"/>
+    <rect x="18" y="0" width="14" height="74" rx="7" fill="#b07520" opacity="0.72"/>
+    <rect x="744" y="0" width="14" height="74" rx="7" fill="#b07520" opacity="0.72"/>
+
+    <circle cx="180" cy="37" r="11" fill="#7f4f16"/>
+    <circle cx="250" cy="37" r="11" fill="#7f4f16"/>
+    <circle cx="320" cy="37" r="11" fill="#7f4f16"/>
+    <circle cx="390" cy="37" r="11" fill="#7f4f16"/>
+    <circle cx="460" cy="37" r="11" fill="#7f4f16"/>
+    <circle cx="530" cy="37" r="11" fill="#7f4f16"/>
+
+    <rect x="92" y="24" width="34" height="26" rx="13" fill="#734915"/>
+  </g>
+
+  <g fill="#ffffff" opacity="0.8" transform="translate(640 248)">
+    <path d="M0 0 C20 -30, 40 -30, 60 0 C45 -8, 36 -7, 30 4 C24 -7, 15 -8, 0 0Z"/>
+    <path d="M74 -18 C90 -42, 112 -40, 132 -18 C117 -24, 106 -24, 100 -13 C93 -24, 84 -24, 74 -18Z"/>
+    <path d="M152 -36 C166 -56, 184 -56, 202 -37 C189 -41, 180 -40, 175 -31 C170 -41, 162 -41, 152 -36Z"/>
+  </g>
+
+  <text x="62" y="492" fill="#fff7d9" font-family="Tiro Devanagari Sanskrit, Noto Serif Devanagari, serif" font-size="33" font-weight="700" letter-spacing="0.7">
+    Bansuri: Breath, Melody, Devotion
+  </text>
+</svg>

@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { getSessions } from "../api";
 import ScreenState from "../components/ScreenState";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { EChartBase } from "../modules/charts";
+import {
+  buildCompositeTrendOption,
+  buildSkillImprovementOption,
+  type ProgressAnalyticsPoint,
+} from "../modules/progress-analytics/options/buildProgressAnalyticsOptions";
+import type { MessagePayload, SessionsApi } from "../types/api";
+import { initialAsyncState, type AsyncState } from "../types/ui";
 
 export default function ProgressPage() {
   const [userId, setUserId] = useState("demo_user");
+  const [sessionsState, setSessionsState] =
+    useState<AsyncState<SessionsApi | MessagePayload>>(initialAsyncState());
   const {
     analyticsState,
     learningDifficultyState,
@@ -20,9 +31,23 @@ export default function ProgressPage() {
     setUserId(event.target.value);
   };
 
+  const loadSessions = useCallback(async (targetUserId: string) => {
+    setSessionsState({ loading: true, error: null, data: null });
+
+    try {
+      const payload = await getSessions(targetUserId, 30);
+      setSessionsState({ loading: false, error: null, data: payload });
+      return payload;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setSessionsState({ loading: false, error: message, data: null });
+      throw error;
+    }
+  }, []);
+
   const onLoadProgress = async () => {
     try {
-      await loadProgress(safeUserId);
+      await Promise.all([loadProgress(safeUserId), loadSessions(safeUserId)]);
     } catch {
       return;
     }
@@ -34,8 +59,8 @@ export default function ProgressPage() {
     }
 
     hasLoadedOnVisitRef.current = true;
-    void loadProgress(safeUserId).catch(() => undefined);
-  }, [loadProgress, safeUserId]);
+    void Promise.all([loadProgress(safeUserId), loadSessions(safeUserId)]).catch(() => undefined);
+  }, [loadProgress, loadSessions, safeUserId]);
 
   const analytics = analyticsState.data?.data;
   const difficultyPayload = learningDifficultyState.data;
@@ -54,6 +79,57 @@ export default function ProgressPage() {
     trendState.data && "accuracy_series" in trendState.data
       ? trendState.data.accuracy_series ?? []
       : [];
+
+  const sessions =
+    sessionsState.data && !("message" in sessionsState.data)
+      ? sessionsState.data.sessions ?? []
+      : [];
+
+  const toPercentScore = (value: unknown): number | null => {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return null;
+    }
+
+    if (value <= 1) {
+      return Math.round(value * 1000) / 10;
+    }
+
+    return Math.round(value * 10) / 10;
+  };
+
+  const progressChartPoints = useMemo<ProgressAnalyticsPoint[]>(() => {
+    const chronologicalSessions = [...sessions].reverse();
+
+    return chronologicalSessions.map((session, index) => ({
+      label: `S${index + 1}`,
+      accuracy: toPercentScore(session.note_accuracy),
+      pitch: toPercentScore(session.pitch_index),
+      rhythm: toPercentScore(session.rhythm_index),
+      technique: toPercentScore(session.technique_score),
+      composite: toPercentScore(session.composite_score),
+    }));
+  }, [sessions]);
+
+  const skillImprovementOption = useMemo(
+    () => (progressChartPoints.length > 0 ? buildSkillImprovementOption(progressChartPoints) : null),
+    [progressChartPoints],
+  );
+
+  const compositeTrendOption = useMemo(
+    () => (progressChartPoints.length > 0 ? buildCompositeTrendOption(progressChartPoints) : null),
+    [progressChartPoints],
+  );
+
+  const progressChartLoading = sessionsState.loading || trendState.loading;
+  const progressChartError = sessionsState.error ?? trendState.error;
+  const progressChartEmptyMessage =
+    sessionsState.data && "message" in sessionsState.data
+      ? sessionsState.data.message
+      : trendState.data && "message" in trendState.data
+        ? trendState.data.message
+        : progressChartPoints.length === 0
+          ? "No progress chart data available."
+          : undefined;
 
   return (
     <div className="container">
@@ -138,6 +214,29 @@ export default function ProgressPage() {
             </div>
           )}
         </article>
+      </section>
+
+      <section className="card chart-card">
+        <h2 className="chart-title">Learning Analytics Charts</h2>
+        <ScreenState
+          loading={progressChartLoading}
+          error={progressChartError}
+          emptyMessage={progressChartEmptyMessage}
+        />
+
+        {!progressChartLoading && !progressChartError && progressChartPoints.length > 0 && (
+          <div className="progress-analytics-grid">
+            <article className="chart-card">
+              <h3 className="chart-title">Skill Improvement</h3>
+              <EChartBase option={skillImprovementOption} height={320} renderer="canvas" />
+            </article>
+
+            <article className="chart-card">
+              <h3 className="chart-title">Accuracy vs Composite</h3>
+              <EChartBase option={compositeTrendOption} height={320} renderer="canvas" />
+            </article>
+          </div>
+        )}
       </section>
     </div>
   );

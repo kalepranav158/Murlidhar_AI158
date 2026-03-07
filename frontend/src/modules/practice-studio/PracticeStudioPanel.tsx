@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PracticeResultNormalized } from "../../types/normalized";
 import { mapPracticeToStudioModel } from "./mappers";
 import PitchTimeline from "./components/PitchTimeline";
+import PitchDeviationHeatmap from "./components/PitchDeviationHeatmap";
 import { TechniqueVisualizerPanel } from "../technique-visualizer";
 import { AdaptiveCoachPanel } from "../adaptive-coach";
+import type { TimeWindowSelection } from "./types";
 
 type PracticeStudioPanelProps = {
   userId: string;
@@ -73,6 +75,11 @@ const getFeedbackSections = (feedback: unknown): FeedbackSection[] => {
 export default function PracticeStudioPanel({ userId, practice }: PracticeStudioPanelProps) {
   const studioModel = useMemo(() => mapPracticeToStudioModel(practice), [practice]);
   const feedbackSections = useMemo(() => getFeedbackSections(practice.rawFeedback), [practice.rawFeedback]);
+  const [selectedWindow, setSelectedWindow] = useState<TimeWindowSelection | null>(null);
+
+  useEffect(() => {
+    setSelectedWindow(null);
+  }, [practice]);
 
   const meendCount = Array.isArray(practice.techniques?.meend) ? practice.techniques.meend.length : 0;
   const gamakCount = Array.isArray(practice.techniques?.gamak) ? practice.techniques.gamak.length : 0;
@@ -107,10 +114,12 @@ export default function PracticeStudioPanel({ userId, practice }: PracticeStudio
       </div>
 
       {studioModel ? (
-        <PitchTimeline model={studioModel} />
+        <PitchTimeline model={studioModel} highlightedWindow={selectedWindow} />
       ) : (
         <p className="muted">Pitch timeline is not available for this response yet.</p>
       )}
+
+      <PitchDeviationHeatmap practice={practice} onSelectWindow={setSelectedWindow} />
 
       <TechniqueVisualizerPanel practice={practice} />
 
@@ -132,6 +141,11 @@ export default function PracticeStudioPanel({ userId, practice }: PracticeStudio
         {practice.alignmentDebug?.dtwTranspositionShiftSemitones !== null && (
           <p>
             <strong>Alignment shift:</strong> {practice.alignmentDebug?.dtwTranspositionShiftSemitones} semitones
+          </p>
+        )}
+        {selectedWindow && (
+          <p>
+            <strong>Selected window:</strong> {selectedWindow.label}
           </p>
         )}
       </div>

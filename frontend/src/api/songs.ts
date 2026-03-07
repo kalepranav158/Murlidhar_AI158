@@ -1,5 +1,5 @@
 import { apiRequest } from "./client";
-import type { SongListItemApi } from "../types/api";
+import type { SongListItemApi, SongPhraseReferenceApi } from "../types/api";
 
 export const listSongs = async (input?: {
   contentType?: "alankar" | "song" | "melody" | string;
@@ -12,4 +12,16 @@ export const listSongs = async (input?: {
         }
       : undefined,
   });
+};
+
+export const getSongPhraseReference = async (input: {
+  songId: string;
+  phraseIndex: number;
+}) => {
+  return apiRequest<SongPhraseReferenceApi>(
+    `/songs/${encodeURIComponent(input.songId)}/phrase/${input.phraseIndex}`,
+    {
+      method: "GET",
+    },
+  );
 };

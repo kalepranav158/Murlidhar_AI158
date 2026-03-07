@@ -1,20 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
-  getAnalyticsConsistency,
-  getAnalyticsConsistencyDetails,
-  getAnalyticsDashboard,
-  getAnalyticsForecast,
-  getAnalyticsPitchStabilityControl,
-  getAnalyticsRadar,
-  getAnalyticsRecommendationAdaptivePlan,
-  getAnalyticsRisk,
-  getAnalyticsSkillEvolution,
-  getAnalyticsSkillLevel,
-  getAnalyticsSummary,
-  getAnalyticsTestDashboard,
-  getAnalyticsTrend,
-  getAnalyticsWeakestPhrase,
   getDebugAlankar,
   getDebugAnalytics,
   getDebugPhrase,
@@ -31,7 +17,6 @@ export default function DiagnosticsPage() {
   const [songId, setSongId] = useState("song_1");
   const [debugPhraseId, setDebugPhraseId] = useState(0);
 
-  const [analyticsFullState, setAnalyticsFullState] = useState(initialAsyncState<unknown>());
   const [debugState, setDebugState] = useState(initialAsyncState<unknown>());
   const [healthState, setHealthState] = useState(initialAsyncState<unknown>());
 
@@ -64,59 +49,6 @@ export default function DiagnosticsPage() {
     }
   };
 
-  const onLoadAnalyticsFullSet = async () => {
-    await runCall(setAnalyticsFullState, async () => {
-      const [
-        summary,
-        trend,
-        skillLevel,
-        consistency,
-        pitchStability,
-        recommendation,
-        consistencyDetails,
-        dashboard,
-        testDashboard,
-        radar,
-        skillEvolution,
-        risk,
-        forecast,
-        weakestPhrase,
-      ] = await Promise.all([
-        getAnalyticsSummary(safeUserId),
-        getAnalyticsTrend(safeUserId),
-        getAnalyticsSkillLevel(safeUserId),
-        getAnalyticsConsistency(safeUserId),
-        getAnalyticsPitchStabilityControl(safeUserId),
-        getAnalyticsRecommendationAdaptivePlan(safeUserId),
-        getAnalyticsConsistencyDetails(safeUserId),
-        getAnalyticsDashboard(safeUserId),
-        getAnalyticsTestDashboard(safeUserId),
-        getAnalyticsRadar(safeUserId),
-        getAnalyticsSkillEvolution(safeUserId),
-        getAnalyticsRisk(safeUserId),
-        getAnalyticsForecast(safeUserId),
-        getAnalyticsWeakestPhrase(safeUserId, songId.trim()),
-      ]);
-
-      return {
-        summary,
-        trend,
-        skillLevel,
-        consistency,
-        pitchStability,
-        recommendation,
-        consistencyDetails,
-        dashboard,
-        testDashboard,
-        radar,
-        skillEvolution,
-        risk,
-        forecast,
-        weakestPhrase,
-      };
-    });
-  };
-
   const onLoadDebugSet = async () => {
     await runCall(setDebugState, async () => {
       const [sessions, alankar, phrase, analytics, student] = await Promise.all([
@@ -147,6 +79,7 @@ export default function DiagnosticsPage() {
 
       <section className="card">
         <h2>Context</h2>
+        <p className="muted">Analytics charts are available in the dedicated Analytics page. Diagnostics stays debug-only.</p>
         <label>
           User ID
           <input value={userId} onChange={onUserIdChange} />
@@ -163,16 +96,6 @@ export default function DiagnosticsPage() {
           Debug Phrase ID
           <input type="number" min={0} value={debugPhraseId} onChange={onDebugPhraseIdChange} />
         </label>
-      </section>
-
-      <section className="card">
-        <h2>Analytics Endpoint Group</h2>
-        <div className="row">
-          <button onClick={onLoadAnalyticsFullSet}>Load Full Analytics Set</button>
-        </div>
-        <section className="grid">
-          <ResultCard title="Analytics (Full Set)" state={analyticsFullState} />
-        </section>
       </section>
 
       <section className="card">

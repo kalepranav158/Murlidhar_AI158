@@ -110,11 +110,27 @@ Backward compatibility: frontend adapters still accept legacy `{ "message": "...
 - No-data 200:
   - envelope with `status: "no_data"`, `data: { "count": 0, "sessions": [] }`
 
-#### `GET /songs/`
-- Params: none
+#### `GET /songs/?content_type=...`
+- Params: `content_type` optional (`alankar` | `song` | `melody`)
 - Success 200:
-  - song list payload
+  - song list payload (`song_id`, `title`, `tempo`, `phrases`, `content_type`)
 - No-data/Error: route-specific payloads (frontend adapters defensive)
+
+#### `GET /songs/{song_id}/phrase/{phrase_index}`
+- Params: `song_id` path required, `phrase_index` path required
+- Success 200:
+  - `song_id: string`
+  - `title: string`
+  - `content_type: string`
+  - `phrase_index: number`
+  - `phrase_id: number`
+  - `phrase_section: string | null`
+  - `phrase_count: number`
+  - `reference_tempo: number | null`
+  - `notes: Array<{ note: string, time: number }>`
+- Error:
+  - `404` when content id not found
+  - `400` when phrase index is out of range
 
 ---
 

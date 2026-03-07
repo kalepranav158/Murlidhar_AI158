@@ -41,3 +41,9 @@ export type ProjectedTechniqueEvent = {
   xEnd: number;
   label: string;
 };
+
+export type TimeWindowSelection = {
+  startTime: number;
+  endTime: number;
+  label: string;
+};
