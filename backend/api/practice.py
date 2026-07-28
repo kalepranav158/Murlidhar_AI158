@@ -16,6 +16,7 @@ async def practice_alankar(
     phrase_index: int,
     tempo: int = 60,
     file: UploadFile = File(...),
+    debug: bool = False,
 ):
     """
     Alankar practice endpoint.
@@ -26,7 +27,8 @@ async def practice_alankar(
         upload_file=file,
         alankar_id=alankar_id,
         phrase_index=phrase_index,
-        tempo=tempo
+        tempo=tempo,
+        debug=debug,
     )
 
 
@@ -40,6 +42,7 @@ async def practice_song(
     phrase_index: int,
     tempo: int = 60,
     file: UploadFile = File(...),
+    debug: bool = False,
 ):
 
     """
@@ -51,7 +54,8 @@ async def practice_song(
         upload_file=file,
         song_id=song_id,
         phrase_index=phrase_index,
-        tempo=tempo
+        tempo=tempo,
+        debug=debug,
     )
 
 
@@ -65,6 +69,7 @@ async def practice_melody(
     phrase_index: int,
     tempo: int = 60,
     file: UploadFile = File(...),
+    debug: bool = False,
 ):
     """
     Melody practice endpoint.
@@ -76,13 +81,15 @@ async def practice_melody(
         melody_id=melody_id,
         phrase_index=phrase_index,
         tempo=tempo,
+        debug=debug,
+        
     )
 
     
 @router.post("/song/full/{user_id}/{song_id}")
 @router.post("/practice/song/full/{user_id}/{song_id}")
-async def practice_song_full(user_id: str, song_id: str, file: UploadFile):
-    return await evaluate_song_full(user_id, file, song_id, tempo=60)
+async def practice_song_full(user_id: str, song_id: str, file: UploadFile, debug: bool = False):
+    return await evaluate_song_full(user_id, file, song_id, tempo=60, debug=debug)
 
 
 

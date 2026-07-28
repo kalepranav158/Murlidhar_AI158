@@ -71,7 +71,8 @@ async def evaluate_alankar(
     upload_file,
     alankar_id: str,
     phrase_index: int,
-    tempo: int
+    tempo: int,
+    debug: bool = False,
 ):
     """
     Alankar practice evaluation service.
@@ -112,7 +113,9 @@ async def evaluate_alankar(
         raise HTTPException(status_code=500, detail="Reference phrase empty")
 
     # Process audio core (no adaptive logic here)
-    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, reference)
+    cost, result, played, techniques, alignment_indices, pitch_contour = await process_audio_core(
+        upload_file, reference, conf_threshold=0.8, debug=debug
+    )
 
     # Compute real BPM from played notes
     real_bpm = None
@@ -266,7 +269,7 @@ async def evaluate_alankar(
         if isinstance(n, dict)
     ]
 
-    return {
+    response = {
         "content_type": "alankar",
         "song": song["title"],
         "phrase_index": phrase_index,
@@ -290,7 +293,16 @@ async def evaluate_alankar(
         "detected_notes": detected_notes,
         "reference_notes": reference_notes,
         "curriculum": curriculum_info
+
     }
+
+    if debug:
+        response["debug"] = {
+            "alignment_indices": alignment_indices,
+            "pitch_contour": pitch_contour,
+        }
+
+    return response
 
 
 async def evaluate_song(
@@ -299,6 +311,7 @@ async def evaluate_song(
     song_id: str,
     phrase_index: int,
     tempo: int,
+    debug: bool = False,
     expected_content_type: str = "song",
     phrase_skill_type: str = "phrase",
     phrase_skill_segment: str = "phrase",
@@ -358,7 +371,9 @@ async def evaluate_song(
         raise HTTPException(status_code=500, detail="Reference phrase empty")
 
     # Process audio core (no adaptive logic here)
-    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, reference)
+    cost, result, played, techniques, alignment_indices, pitch_contour = await process_audio_core(
+        upload_file, reference, conf_threshold=0.8, debug=debug
+    )
 
     # Compute real BPM from played notes
     real_bpm = None
@@ -521,7 +536,7 @@ async def evaluate_song(
         if isinstance(n, dict)
     ]
 
-    return {
+    response = {
         "content_type": resolved_content_type,
         "song": song["title"],
         "phrase_index": phrase_index,
@@ -546,7 +561,16 @@ async def evaluate_song(
         "detected_notes": detected_notes,
         "reference_notes": reference_notes,
         "curriculum": curriculum_info
+
     }
+
+    if debug:
+        response["debug"] = {
+            "alignment_indices": alignment_indices,
+            "pitch_contour": pitch_contour,
+        }
+
+    return response
 
 
 async def evaluate_melody(
@@ -555,6 +579,7 @@ async def evaluate_melody(
     melody_id: str,
     phrase_index: int,
     tempo: int,
+    debug: bool = False,
 ):
     return await evaluate_song(
         user_id=user_id,
@@ -567,6 +592,7 @@ async def evaluate_melody(
         phrase_skill_segment="melody_phrase",
         include_song_adaptive_plan=False,
         include_full_song_unlock=False,
+        debug=debug,
     )
 
 
@@ -586,7 +612,7 @@ def build_full_song_reference(song: dict):
     return full_reference, boundaries
 
 
-async def evaluate_song_full(user_id, upload_file, song_id, tempo):
+async def evaluate_song_full(user_id, upload_file, song_id, tempo, debug: bool = False):
 
     song_path = f"data/songs/catalog/{song_id}.json"
 
@@ -605,7 +631,9 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
 
     full_reference, boundaries = build_full_song_reference(song)
 
-    cost, result, played, techniques, alignment_indices = await process_audio_core(upload_file, full_reference)
+    cost, result, played, techniques, alignment_indices, pitch_contour = await process_audio_core(
+        upload_file, full_reference, conf_threshold=0.8, debug=debug
+    )
     transition_score = compute_transition_score(played, boundaries, tempo=tempo)
     flow_score = compute_flow_consistency(played)
 
@@ -639,7 +667,7 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
     ]
 
     # Full-song adaptive logic can be added later
-    return {
+    response = {
         "mode": "full_song",
         "content_type": "song",
         "song": song["title"],
@@ -661,6 +689,14 @@ async def evaluate_song_full(user_id, upload_file, song_id, tempo):
         "detected_notes": detected_notes,
         "reference_notes": reference_notes,
     }
+
+    if debug:
+        response["debug"] = {
+            "alignment_indices": alignment_indices,
+            "pitch_contour": pitch_contour,
+        }
+
+    return response
 
 
 def compute_transition_score(played_notes, boundaries, tempo=60):

@@ -34,7 +34,6 @@ conda create -n venora python=3.10 -y
 conda activate gokul
 
 pip install -r requirements.txt
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Backend API default URL: `http://127.0.0.1:8000`

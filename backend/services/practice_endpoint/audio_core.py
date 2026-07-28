@@ -129,8 +129,10 @@ def _decode_and_convert_to_wav(contents: bytes, source_suffix: str) -> Tuple[np.
 
 async def process_audio_core(
     upload_file,
-    reference: List[Dict[str, Any]]
-) -> Tuple[float, Dict[str, Any], List[Dict[str, Any]], Dict[str, Any], List[Tuple[int, int]]]:
+    reference: List[Dict[str, Any]],
+    conf_threshold: float = 0.8,
+    debug: bool = False,
+) -> Tuple[float, Dict[str, Any], List[Dict[str, Any]], Dict[str, Any], List[Tuple[int, int]], List[Dict[str, Any]]]:
     """
     Core audio processing pipeline.
     
@@ -230,8 +232,11 @@ async def process_audio_core(
         # store raw pitch contour per frame for technique detection
         pitch_contour = []
 
-        for i in range(0, len(data) - HOP_SIZE, HOP_SIZE):
+        for i in range(0, len(data), HOP_SIZE):
             frame = data[i : i + HOP_SIZE].astype(np.float32)
+            # pad final partial frame so pitch detector gets consistent size
+            if frame.shape[0] < HOP_SIZE:
+                frame = np.pad(frame, (0, HOP_SIZE - frame.shape[0]), mode="constant")
 
             freq, conf = detect_pitch(frame, samplerate=samplerate)
 
@@ -258,8 +263,8 @@ async def process_audio_core(
                 current_time += HOP_SIZE / samplerate
                 continue
 
-            # Skip low-confidence frames for segmentation only
-            if conf < 0.8:
+            # Skip low-confidence frames for segmentation only (configurable)
+            if conf < conf_threshold:
                 current_time += HOP_SIZE / samplerate
                 continue
 
@@ -292,12 +297,45 @@ async def process_audio_core(
         result["dtw_transposition_shift_semitones"] = estimate_transposition_shift(reference, played)
         
         # Convert alignment (ref_note, played_note) tuples to (played_idx, ref_idx) indices
-        # so we can map time-based technique windows to reference space
+        # Use robust matching by time (with tolerance) rather than relying on object identity
         alignment_indices = []
+
+        def _find_index_by_time(notes_list, target_note, tol=0.25):
+            # try direct identity/equality first
+            for idx, n in enumerate(notes_list):
+                if n is target_note:
+                    return idx
+            # then try matching by time field within tolerance
+            t = None
+            try:
+                t = float(target_note.get("time", None))
+            except Exception:
+                t = None
+            if t is not None:
+                best = None
+                best_diff = None
+                for idx, n in enumerate(notes_list):
+                    try:
+                        nt = float(n.get("time", 0.0))
+                    except Exception:
+                        continue
+                    diff = abs(nt - t)
+                    if best is None or diff < best_diff:
+                        best = idx
+                        best_diff = diff
+                if best is not None and best_diff is not None and best_diff <= tol:
+                    return best
+            # fallback: try matching by note name + approximate time
+            target_name = target_note.get("note") if isinstance(target_note, dict) else None
+            if target_name:
+                for idx, n in enumerate(notes_list):
+                    if n.get("note") == target_name:
+                        return idx
+            return None
+
         for ref_note, played_note in alignment:
-            # Find indices by comparing note objects
-            ref_idx = next((i for i, n in enumerate(reference) if n is ref_note), None)
-            played_idx = next((i for i, n in enumerate(played) if n is played_note), None)
+            ref_idx = _find_index_by_time(reference, ref_note)
+            played_idx = _find_index_by_time(played, played_note)
             if ref_idx is not None and played_idx is not None:
                 alignment_indices.append((played_idx, ref_idx))
 
@@ -314,5 +352,6 @@ async def process_audio_core(
         logger.exception("Technique detection failed")
         techniques = {"meend": [], "gamak": []}
 
-    return cost, result, played, techniques, alignment_indices
+    # Return pitch_contour as additional debug data (last element)
+    return cost, result, played, techniques, alignment_indices, pitch_contour
 

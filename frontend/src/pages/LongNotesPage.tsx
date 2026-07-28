@@ -6,6 +6,8 @@ const G_STRING_INDIAN_NOTE = "Mandra Pa";
 const G_STRING_FREQUENCY_HZ = 196;
 const METER_RANGE_CENTS = 50;
 const IN_TUNE_THRESHOLD_CENTS = 10;
+const HOLD_IN_TUNE_THRESHOLD_CENTS = 15;
+const HOLD_RESET_GRACE_SECONDS = 0.2;
 const MIN_SIGNAL_RMS = 0.01;
 const SA_REFERENCE_HZ = 523.25;
 const WESTERN_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -174,6 +176,7 @@ export default function LongNotesPage() {
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const holdSecondsRef = useRef(0);
+  const offTargetSecondsRef = useRef(0);
 
   const stopListening = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -202,10 +205,12 @@ export default function LongNotesPage() {
     }
 
     lastFrameTimeRef.current = null;
+    offTargetSecondsRef.current = 0;
     setIsListening(false);
   }, []);
 
   const resetHoldStats = useCallback(() => {
+    offTargetSecondsRef.current = 0;
     holdSecondsRef.current = 0;
     setHoldSeconds(0);
     setBestHoldSeconds(0);
@@ -266,8 +271,11 @@ export default function LongNotesPage() {
         lastFrameTimeRef.current = timeMs;
 
         if (rms < MIN_SIGNAL_RMS) {
-          holdSecondsRef.current = 0;
-          setHoldSeconds(0);
+          offTargetSecondsRef.current += frameDeltaSeconds;
+          if (offTargetSecondsRef.current >= HOLD_RESET_GRACE_SECONDS) {
+            holdSecondsRef.current = 0;
+          }
+          setHoldSeconds(holdSecondsRef.current);
           setSnapshot((previous) => ({
             ...previous,
             frequencyHz: null,
@@ -282,8 +290,11 @@ export default function LongNotesPage() {
         const frequencyHz = estimateFrequency(dataBuffer, audioContextRef.current?.sampleRate ?? 44100);
 
         if (!frequencyHz) {
-          holdSecondsRef.current = 0;
-          setHoldSeconds(0);
+          offTargetSecondsRef.current += frameDeltaSeconds;
+          if (offTargetSecondsRef.current >= HOLD_RESET_GRACE_SECONDS) {
+            holdSecondsRef.current = 0;
+          }
+          setHoldSeconds(holdSecondsRef.current);
           setSnapshot((previous) => ({
             ...previous,
             frequencyHz: null,
@@ -296,12 +307,16 @@ export default function LongNotesPage() {
         }
 
         const centsOffset = getCentsOffset(frequencyHz, G_STRING_FREQUENCY_HZ);
-        const inTuneNow = Math.abs(centsOffset) <= IN_TUNE_THRESHOLD_CENTS;
+        const holdInTuneNow = Math.abs(centsOffset) <= HOLD_IN_TUNE_THRESHOLD_CENTS;
 
-        if (inTuneNow) {
+        if (holdInTuneNow) {
+          offTargetSecondsRef.current = 0;
           holdSecondsRef.current += frameDeltaSeconds;
         } else {
-          holdSecondsRef.current = 0;
+          offTargetSecondsRef.current += frameDeltaSeconds;
+          if (offTargetSecondsRef.current >= HOLD_RESET_GRACE_SECONDS) {
+            holdSecondsRef.current = 0;
+          }
         }
 
         const nextHoldSeconds = holdSecondsRef.current;
